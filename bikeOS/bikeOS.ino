@@ -7,7 +7,6 @@
 #include "pins.h" //pin definitions
 #include "helper.h" //helper functions
 #include "joystickHelper.h" //joystick library
-#include "menuHelper.h" //joystick library
 
 //Adapted from ElectroNoobs ESC Controller by Aaron Becker
 //EbikeOS by Aaron Becker. Let's get it
@@ -35,6 +34,11 @@ float oldodometer;
 int maxReedCounter = 10; //min time (in ms) of one rotation (for debouncing)
 int reedCounter;
 
+//menu stuff
+int menuOffset = 0;
+int cursorOffset = 0; //cursor offset from top
+int numberOfStates = 0;
+
 unsigned long previousMillis = 0;
 #define LED_ILLEGAL_MODE_INTERVAL 100
 int ledState = LOW;
@@ -47,8 +51,7 @@ LiquidCrystal_I2C lcd(0x27, 20, 4); // set the LCD address to 0x27 for a 20 char
 joystickHelper joystick(joystickX, joystickY, joystickSW);
 
 //create menu object
-String mainMenuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
-menuHelper activeMenu(&lcd, mainMenuStates, 5);
+String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
 
 void setup() {
   Serial.begin(9600);
@@ -203,21 +206,21 @@ void loop() {
       oldIllegalMode = illegalMode;
       break;
     case 4: //paint menu screen
-      activeMenu.renderMenu(); //render menu onto LCD
+      renderMenu(); //render menu onto LCD
       delay(500);
       MASTER_STATE = 5;
       break;
     case 5: //case to wait until joystick change and update x value
       delay(100);
       joystick.update();
-      if (joystick.isPressed() && activeMenu.getMenuOffset() == 0) {
+      if (joystick.isPressed() && menuOffset == 0) {
         MASTER_STATE = 2; //go back
       }
 
       int yOffset = round(map(joystick.y, -100, 100, -3, 3)); //max change is 3 at 100% joystick value (joystick is updated on every run)
       if (yOffset != 0) {
-        activeMenu.changeMenuPosition(yOffset); //change the position according to the magnitude of the joystick press
-        activeMenu.renderMenu();
+        changeMenuPosition(yOffset); //change the position according to the magnitude of the joystick press
+        renderMenu();
       }
       
     default: //hmm undefined state? so just reset
@@ -272,3 +275,45 @@ void lightLedIfSpeed(int _ledState) {
     digitalWrite(led_pin, LOW); //disable if speed low
   }
 }
+
+void renderMenu() {
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("MENU --------------");
+  int counter = menuOffset;
+  for (int i=1; i<3; i++) { //only paint 3 rows (lcd height 4)
+    lcd.setCursor(0,i);
+    if (i-1 == cursorOffset) { //is the current row the row with the cursor
+      lcd.write(126); //print the right arrow
+    }
+    lcd.print(menuStates[counter]);
+    
+    counter++;
+    if (counter > numberOfStates) {
+      counter = 0; //wrap it back around to print original states
+    }
+  }
+}
+
+void changeMenuPosition(int change) {
+  cursorOffset += change;
+  if (cursorOffset > 3) { //cursor is offscreen below
+    cursorOffset = 3; //set cursor to bottom row
+    menuOffset = calculateMenuOffset(change-3); //subtract the cursor change from the menuOffset
+  } else if (cursorOffset < 0) { //cursor is offscreen above
+    cursorOffset = 0; //set cursor to top row
+    menuOffset = calculateMenuOffset(change+3); //add the cursor change from the menuOffset
+  } //otherwise cursor must still be onscreen and offset has already been changed
+  
+}
+
+int calculateMenuOffset(int change) {
+  
+  int difference = change - 3; //calculate offset considering displayHeight
+
+  while(difference > numberOfStates) { //while the offset it still greater than the number of states
+    difference -= numberOfStates; //subtract number of states
+  }
+}
+
+
