@@ -21,7 +21,6 @@ class joystickHelper {
     int xPin;
     int yPin;
     int swPin;
-    long lastPressTime;
     int lastPressState = LOW;
 };
 

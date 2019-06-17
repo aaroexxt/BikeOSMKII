@@ -7,6 +7,8 @@
 #define joystickX A2
 #define joystickY A1
 #define joystickSW 7
+#define temp_pin A1 //pin to dht11 temp
+#define tempType DHT22 //temperature sensor type
 
 #define ESC_MIN 1200
 #define ESC_LEGAL_MAX 2000
