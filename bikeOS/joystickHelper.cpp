@@ -43,15 +43,17 @@ void joystickHelper::update() {
     }
   }*/
   int tB = digitalRead(joystickHelper::swPin);
-  if (tB == HIGH) {
-    joystickHelper::pressed = false;
+  if (joystickHelper::pressed && ((millis() - joystickHelper::lastPressTime) > 50)) {
+    joystickHelper::pressed = false; //disable press after 100ms
   }
-  if (tB != joystickHelper::lastPressState) {
-    if (tB == LOW) { //just pressed (detect falling edge)
-      joystickHelper::pressed = true;
-    }
+
+  if (tB == HIGH) { //when not pressed reset detection
+    joystickHelper::allowPress = true;
+  } else if (tB == LOW && joystickHelper::allowPress) { //just pressed (detect rising edge)
+    joystickHelper::pressed = true;
+    joystickHelper::allowPress = false;
+    joystickHelper::lastPressTime = millis();
   }
-  joystickHelper::lastPressState = tB;
 
   //STEP 2: deal with xPos
   int tX = map(analogRead(joystickHelper::xPin), 0, 1023, -100, 100); //map to percentages

@@ -38,13 +38,14 @@ boolean forceRedraw = false; //boolean to force a redraw of the display
 //all sensor values
 int reedVal;
 long timeBetweenRevolution;// time between one full rotation (in ms)
-long ridetime;
+long ridetime = 0;
 int mph;
 int oldmph;
 int maxReedTime = 2000; //maximum time between pulses
 float circumference = (14.25*2*3.14159); //radius 14.25 (measured)
 float odometer;
 float oldodometer;
+boolean canDecrementRidetime = true;
 
 float oldf, oldh, oldhi;
 
@@ -122,7 +123,8 @@ void setup() {
   //END TIMER SETUP
   
   //Fix watchdog
-  wdt_disable();
+  wdt_enable(WDTO_2S);
+  wdt_reset();
   delay(100);
 }
 
@@ -135,6 +137,7 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
       timeBetweenRevolution = 0;//reset timer
       reedCounter = maxReedCounter; //reset reedCounter
     }
+    canDecrementRidetime = true;
   }
   else { //if reed switch is open
     if (reedCounter > 0) { //don't let reedCounter go negative
@@ -143,9 +146,11 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
   }
   if (timeBetweenRevolution > maxReedTime) {
     mph = 0;//if no new pulses from reed switch- tire is still, set mph, rpm and kph to 0
-    ridetime -= maxReedTime;
-  }
-  else {
+    if (ridetime > maxReedTime && canDecrementRidetime) { //allow only one subtraction
+      ridetime -= maxReedTime;
+      canDecrementRidetime = false;
+    }
+  } else {
     timeBetweenRevolution += 1;//increment timer
     ridetime += 1;
   }
@@ -153,6 +158,7 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
 
 void loop() {
   //Serial.println(analogRead(joystickSW));
+  wdt_reset(); //pat watchdog (in case it gets stuck in a loop);
   switch (MASTER_STATE) {
     case 0: //initial state. Sets up LCD with status message
       lcd.clear();
@@ -187,7 +193,7 @@ void loop() {
     case 3: //do all the main checks. If there's menu desire, switch to state 4
       if (oldmph != mph || forceRedraw) {
         lcd.setCursor(0,0);
-        lcd.print("                    ");
+        lcd.print("                   ");
         lcd.setCursor(0,0);
         lcd.print("MPH: ");
         lcd.setCursor(5,0);
@@ -195,7 +201,7 @@ void loop() {
       }
       if (oldodometer != odometer || forceRedraw) {
         lcd.setCursor(0,1);
-        lcd.print("                    ");
+        lcd.print("                   ");
         lcd.setCursor(0,1);
         lcd.print("ODO:");
         lcd.setCursor(5,1);
@@ -203,19 +209,27 @@ void loop() {
       }
       if (oldIllegalMode != illegalMode || forceRedraw) {
           lcd.setCursor(0,3);
-          lcd.print("                    ");
+          lcd.print("                   ");
           lcd.setCursor(0,3);
-          lcd.print("IllegalMode:");
-          lcd.setCursor(13,3);
-          lcd.print((illegalMode)?"ON":"OFF"); //ooo fancy ternary operator
+          lcd.print("MaxPwrMode:");
+          lcd.setCursor(12,3);
+          lcd.print((illegalMode)?"Disabled":"Enabled "); //ooo fancy ternary operator
       }
       if (oldPercent != currentPercent || forceRedraw) {
+          lcd.setCursor(0,2);
+          lcd.print("                    ");
+          lcd.setCursor(0,2);
+          lcd.print("THT: ");
           lcd.setCursor(5,2);
           String throtBar = "";
-          for (int i=0; i<=map(currentPercent, 0, 100, 0, 14); i++) {
-            throtBar+="-";
+          int barSegments = map(currentPercent, 0, 100, 0, 14);
+          if (barSegments > 0) {
+            for (int i=0; i<=barSegments; i++) {
+              throtBar+="-";
+            }
           }
-          throtBar+=">";
+          throtBar+=">"; //close bar
+          
           lcd.print(throtBar);
       }
 
@@ -239,8 +253,9 @@ void loop() {
       delay(100);
       joystick.update();
       if (joystick.isPressed()) { //if joystick pressed
-        if (menuOffset != 0) { //offset is 0, so just return otherwise switch state
-          MASTER_STATE = menuOffset+5; //force a screen redraw to paint initial state
+        int offset = menuOffset+cursorOffset;
+        if (offset != 0) { //offset is 0, so just return otherwise switch state
+          MASTER_STATE = offset+5; //force a screen redraw to paint initial state
           forceRedraw = true;
           return; //return because we don't want the state to be updated anymore
         } else {
@@ -256,22 +271,24 @@ void loop() {
       
       break;
     case 6: //ridetime
+      delay(100);
       if (forceRedraw) { //first paint
         lcd.clear();
         lcd.setCursor(0,0);
         lcd.print("Ride Time ----------");
         lcd.setCursor(0,2);
         lcd.print("Time Since Init");
+        forceRedraw = false; //disable forced redraw
       } else {
         lcd.setCursor(0,1);
-        lcd.print(timeToString(ridetime)); //prints time riding
+        lcd.print(timeToString(ridetime/1000)); //prints time riding
+        Serial.println(ridetime);
         lcd.setCursor(0,3);
         lcd.print(timeToString(millis()/1000)); //prints time since init
       }
       if (joystick.isPressed()) {
         MASTER_STATE = 2;
       }
-      delay(100);
       break;
     case 7: //temp
       delay(100);
@@ -285,6 +302,7 @@ void loop() {
         lcd.print("H: ");
         lcd.setCursor(0,3);
         lcd.print("HI: ");
+        forceRedraw = false; //disable forced redraw
       }
       
       //temp reading
@@ -331,10 +349,12 @@ void loop() {
       }
       break;
     case 8: //beta cc mode
+      delay(100);
       if (forceRedraw) {
         lcd.clear();
         lcd.setCursor(0,0);
         lcd.print("not programmed press joystick to exit");
+        forceRedraw = false; //disable forced redraw
       }
       if (joystick.isPressed()) {
         MASTER_STATE = 2;
@@ -351,6 +371,7 @@ void loop() {
         lcd.print("By Aaron Becker");
         lcd.setCursor(0,3);
         lcd.print("Copyright 2019");
+        forceRedraw = false; //disable forced redraw
       }
       if (joystick.isPressed()) {
         MASTER_STATE = 2;
@@ -374,8 +395,8 @@ void loop() {
   currentPercent = map(throttleValue, THROTTLE_MIN, THROTTLE_MAX, 0, 100);
 
   
-  if (illegalMode == LOW) {
-    //mult speed by constant or constriain: 2 approaches
+  if (illegalMode == HIGH) {
+    //mult speed by constant or constrain: 2 approaches
     //speed = constrain(speed, 0, NON_ILLEGAL_SPEED_MAX);
     currentSpeed = map(throttleValue, THROTTLE_MIN, THROTTLE_MAX, ESC_MIN, ESC_LEGAL_MAX);    //map the 0 to 1024 ponts of analog read
     
@@ -427,8 +448,8 @@ void renderMenu() {
     if (i-1 == cursorOffset) { //is the current row the row with the cursor
       lcd.write(126); //print the right arrow
     }
-    lcd.setCursor(2,i);
-    lcd.print(menuStates[counter].substring(0,10)); //substring it so as to make it not break the screen logic
+    lcd.setCursor(1,i);
+    lcd.print(menuStates[counter].substring(0,19)); //substring it so as to make it not break the screen logic
     counter++;
   }
 }
