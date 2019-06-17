@@ -58,6 +58,7 @@ void joystickHelper::update() {
   }
 
   //STEP 3: deal with yPos
+  int tY = map(analogRead(joystickHelper::yPin), 0, 1023, 100, -100); //map to percentages
   if (tY > -joystickHelper::deadband && tX < joystickHelper::deadband) { //deadband
     joystickHelper::y = 0; //just set to 0
   } else {
