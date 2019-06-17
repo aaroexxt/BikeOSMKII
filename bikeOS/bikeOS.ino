@@ -7,6 +7,10 @@
 #include "pins.h" //pin definitions
 #include "helper.h" //helper functions
 #include "joystickHelper.h" //joystick library
+/*struct joystickPosition {
+  int x;
+  int y;
+};*/
 
 //Adapted from ElectroNoobs ESC Controller by Aaron Becker
 //EbikeOS by Aaron Becker. Let's get it
@@ -37,7 +41,6 @@ int reedCounter;
 //menu stuff
 int menuOffset = 0;
 int cursorOffset = 0; //cursor offset from top
-int numberOfStates = 0;
 
 unsigned long previousMillis = 0;
 #define LED_ILLEGAL_MODE_INTERVAL 100
@@ -52,9 +55,10 @@ joystickHelper joystick(joystickX, joystickY, joystickSW);
 
 //create menu object
 String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
+int numberOfStates = 5;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(57600);
   //setup pins
   pinMode(switch_pin, INPUT_PULLUP);
   pinMode(reed_pin, INPUT_PULLUP);
@@ -102,7 +106,7 @@ void setup() {
   //END TIMER SETUP
   
   //Fix watchdog
-  wdt_enable(WDTO_2S);
+  wdt_disable();
   delay(100);
 }
 
@@ -133,7 +137,6 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
 
 void loop() {
   //Serial.println(analogRead(joystickSW));
-  wdt_reset();
   switch (MASTER_STATE) {
     case 0: //initial state. Sets up LCD with status message
       lcd.clear();
@@ -191,7 +194,9 @@ void loop() {
           lcd.print((illegalMode)?"ON":"OFF"); //ooo fancy ternary operator
       }
       if (oldPercent != currentPercent || forceRedraw) {
-          lcd.setCursor(0,2);
+          lcd.setCursor(5,2);
+          lcd.print(currentPercent);
+          //todo finish this and make it a bar
       }
 
       
@@ -217,13 +222,15 @@ void loop() {
         MASTER_STATE = 2; //go back
       }
 
-      int yOffset = round(map(joystick.y, -100, 100, -3, 3)); //max change is 3 at 100% joystick value (joystick is updated on every run)
-      if (yOffset != 0) {
-        changeMenuPosition(yOffset); //change the position according to the magnitude of the joystick press
+      if (joystick.movement) {
+        changeMenuPosition((joystick.down) ? 1 : -1); //change the position according to the magnitude of the joystick press
         renderMenu();
       }
       
+      break;
     default: //hmm undefined state? so just reset
+      Serial.println("State error: undefined state");
+      Serial.println(MASTER_STATE);
       MASTER_STATE = 0;
       break;
   }
@@ -281,17 +288,17 @@ void renderMenu() {
   lcd.setCursor(0,0);
   lcd.print("MENU --------------");
   int counter = menuOffset;
-  for (int i=1; i<3; i++) { //only paint 3 rows (lcd height 4)
+  for (int i=1; i<=3; i++) { //only paint 3 rows (lcd height 4)
+    if (counter > numberOfStates) {
+      counter = 0; //wrap it back around to print original states
+    }
     lcd.setCursor(0,i);
     if (i-1 == cursorOffset) { //is the current row the row with the cursor
       lcd.write(126); //print the right arrow
     }
+    lcd.setCursor(2,i);
     lcd.print(menuStates[counter]);
-    
     counter++;
-    if (counter > numberOfStates) {
-      counter = 0; //wrap it back around to print original states
-    }
   }
 }
 
@@ -304,7 +311,6 @@ void changeMenuPosition(int change) {
     cursorOffset = 0; //set cursor to top row
     menuOffset = calculateMenuOffset(change+3); //add the cursor change from the menuOffset
   } //otherwise cursor must still be onscreen and offset has already been changed
-  
 }
 
 int calculateMenuOffset(int change) {
@@ -314,6 +320,8 @@ int calculateMenuOffset(int change) {
   while(difference > numberOfStates) { //while the offset it still greater than the number of states
     difference -= numberOfStates; //subtract number of states
   }
+
+  return -difference;
 }
 
 

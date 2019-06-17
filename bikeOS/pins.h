@@ -4,8 +4,8 @@
 #define vesc_pin 5
 #define led_pin 13
 #define reed_pin A0
-#define joystickX A1
-#define joystickY A2
+#define joystickX A2
+#define joystickY A1
 #define joystickSW 7
 
 #define ESC_MIN 1200

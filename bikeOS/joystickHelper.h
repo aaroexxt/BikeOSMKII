@@ -15,6 +15,8 @@ class joystickHelper {
     boolean isPressed();
     joystickPosition getPosition();
     void update();
+    int deadband = 10;
+    boolean right, left, up, down, movement;
   private:
     int xPin;
     int yPin;

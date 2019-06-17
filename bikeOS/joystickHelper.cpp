@@ -6,6 +6,8 @@ joystickHelper::joystickHelper(int xPin, int yPin, int swPin) {
   joystickHelper::xPin = (int)xPin;
   joystickHelper::yPin = (int)yPin;
   joystickHelper::swPin = (int)swPin;
+  
+  joystickHelper::deadband = abs(joystickHelper::deadband); //keep deadband positive
 
   pinMode(xPin, INPUT);
   pinMode(yPin, INPUT);
@@ -23,6 +25,13 @@ joystickPosition joystickHelper::getPosition() {
 }
 
 void joystickHelper::update() {
+  //reset
+  joystickHelper::up = false;
+  joystickHelper::down = false;
+  joystickHelper::left = false;
+  joystickHelper::right = false;
+  joystickHelper::movement = false;
+  
   //STEP 1: deal with button (debounce logic)
   /*int swReading = digitalRead(joystickHelper::swPin);
   if (swReading != joystickHelper::lastPressState) { //debouncing stuff
@@ -36,11 +45,32 @@ void joystickHelper::update() {
   joystickHelper::pressed = (digitalRead(joystickHelper::swPin) == LOW);
 
   //STEP 2: deal with xPos
-  int xReading = analogRead(joystickHelper::xPin);
-  joystickHelper::x = map(xReading, 0, 1023, -100, 100); //map to percentages
+  int tX = map(analogRead(joystickHelper::xPin), 0, 1023, -100, 100); //map to percentages
+  if (tX > -joystickHelper::deadband && tX < joystickHelper::deadband) { //deadband
+    joystickHelper::x = 0; //just set to 0
+  } else {
+    joystickHelper::x = tX;
+  }
+  if (tX > joystickHelper::deadband) {
+    joystickHelper::right = true;
+  } else if (tX < -joystickHelper::deadband) {
+    joystickHelper::left = true;
+  }
 
   //STEP 3: deal with yPos
-  int yReading = analogRead(joystickHelper::yPin);
-  joystickHelper::y = map(yReading, 0, 1023, -100, 100);
+  if (tY > -joystickHelper::deadband && tX < joystickHelper::deadband) { //deadband
+    joystickHelper::y = 0; //just set to 0
+  } else {
+    joystickHelper::y = tY;
+  }
+  if (tY > joystickHelper::deadband) {
+    joystickHelper::down = true;
+  } else if (tY < -joystickHelper::deadband) {
+    joystickHelper::up = true;
+  }
+
+  if (joystickHelper::left || joystickHelper::right || joystickHelper::up || joystickHelper::down) {
+    joystickHelper::movement = true;
+  }
 }
   
