@@ -1,16 +1,16 @@
 /***************
- ______     __     __  __     ______     ______     ______        __    __     __  __     __     __    
-/\  == \   /\ \   /\ \/ /    /\  ___\   /\  __ \   /\  ___\      /\ "-./  \   /\ \/ /    /\ \   /\ \   
-\ \  __<   \ \ \  \ \  _"-.  \ \  __\   \ \ \/\ \  \ \___  \     \ \ \-./\ \  \ \  _"-.  \ \ \  \ \ \  
- \ \_____\  \ \_\  \ \_\ \_\  \ \_____\  \ \_____\  \/\_____\     \ \_\ \ \_\  \ \_\ \_\  \ \_\  \ \_\ 
-  \/_____/   \/_/   \/_/\/_/   \/_____/   \/_____/   \/_____/      \/_/  \/_/   \/_/\/_/   \/_/   \/_/ 
-                                                                                                       
+  ______     __     __  __     ______     ______     ______        __    __     __  __     __     __
+  /\  == \   /\ \   /\ \/ /    /\  ___\   /\  __ \   /\  ___\      /\ "-./  \   /\ \/ /    /\ \   /\ \
+  \ \  __<   \ \ \  \ \  _"-.  \ \  __\   \ \ \/\ \  \ \___  \     \ \ \-./\ \  \ \  _"-.  \ \ \  \ \ \
+  \ \_____\  \ \_\  \ \_\ \_\  \ \_____\  \ \_____\  \/\_____\     \ \_\ \ \_\  \ \_\ \_\  \ \_\  \ \_\
+  \/_____/   \/_/   \/_/\/_/   \/_____/   \/_____/   \/_____/      \/_/  \/_/   \/_/\/_/   \/_/   \/_/
+
 ****************
 
 
-Adapted from ElectroNoobs ESC Controller by Aaron Becker
-EbikeOS by Aaron Becker. Let's get it
-Coded in May/Jun 2019, today is Jun 12. hopefully I'll make this super advanced at some point but rn it's pretty basic
+  Adapted from ElectroNoobs ESC Controller by Aaron Becker
+  EbikeOS by Aaron Becker. Let's get it
+  Coded in May/Jun 2019, today is Jun 12. hopefully I'll make this super advanced at some point but rn it's pretty basic
 */
 
 
@@ -42,7 +42,7 @@ long ridetime = 0;
 int mph;
 int oldmph;
 int maxReedTime = 2000; //maximum time between pulses
-float circumference = (14.25*2*3.14159); //radius 14.25 (measured)
+float circumference = (14.25 * 2 * 3.14159); //radius 14.25 (measured)
 float odometer;
 float oldodometer;
 boolean canDecrementRidetime = true;
@@ -84,22 +84,22 @@ void setup() {
   //setup vesc
   VESC.attach(vesc_pin);
   VESC.write(ESC_MIN);           //The range of this ESC is 1000us to 1500 for CW and 1500 to 2000us for CCW
-                                           //That's why I map the values from 1505 to 2000u in order to avoid backwards rotations
+  //That's why I map the values from 1505 to 2000u in order to avoid backwards rotations
   //setup temp
   dht.begin();
-  
+
   //setup lcd
   lcd.init(); //initialize lcd
   lcd.backlight(); //enable backlight
   lcd.home(); //clear lcd
 
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("Welcome!");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print("EBikeOS V1");
-  lcd.setCursor(0,2);
+  lcd.setCursor(0, 2);
   lcd.print("By Aaron Becker");
-  lcd.setCursor(0,3);
+  lcd.setCursor(0, 3);
   lcd.print("--------------------");
 
   // TIMER SETUP- the timer interrupt allows precise timed measurements of the reed switch
@@ -121,7 +121,7 @@ void setup() {
 
   sei();//allow interrupts
   //END TIMER SETUP
-  
+
   //Fix watchdog
   wdt_enable(WDTO_2S);
   wdt_reset();
@@ -163,13 +163,13 @@ void loop() {
     case 0: //initial state. Sets up LCD with status message
       lcd.clear();
       lcd.print("System OK.");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print("--------------------");
-      lcd.setCursor(0,2);
+      lcd.setCursor(0, 2);
       lcd.print("Press joystick to");
-      lcd.setCursor(0,3);
+      lcd.setCursor(0, 3);
       lcd.print("continue");
-      
+
       MASTER_STATE = 1;
       break;
     case 1: //waits for joystick press
@@ -180,60 +180,60 @@ void loop() {
     case 2: //display basic LCD functions and then switch to state 3 (i.e. the main loop)
       lcd.clear();
       lcd.print("MPH:");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print("ODO:");
-      lcd.setCursor(0,2);
+      lcd.setCursor(0, 2);
       lcd.print("THT:");
-      lcd.setCursor(0,3);
+      lcd.setCursor(0, 3);
       lcd.print("IllegalMode:");
-      
+
       forceRedraw = true; //force a redraw
       MASTER_STATE = 3;
       break;
     case 3: //do all the main checks. If there's menu desire, switch to state 4
       if (oldmph != mph || forceRedraw) {
-        lcd.setCursor(0,0);
+        lcd.setCursor(0, 0);
         lcd.print("                   ");
-        lcd.setCursor(0,0);
+        lcd.setCursor(0, 0);
         lcd.print("MPH: ");
-        lcd.setCursor(5,0);
+        lcd.setCursor(5, 0);
         lcd.print(mph);
       }
       if (oldodometer != odometer || forceRedraw) {
-        lcd.setCursor(0,1);
+        lcd.setCursor(0, 1);
         lcd.print("                   ");
-        lcd.setCursor(0,1);
+        lcd.setCursor(0, 1);
         lcd.print("ODO:");
-        lcd.setCursor(5,1);
-        lcd.print(String(odometer).substring(0,4));
+        lcd.setCursor(5, 1);
+        lcd.print(String(odometer).substring(0, 4));
       }
       if (oldIllegalMode != illegalMode || forceRedraw) {
-          lcd.setCursor(0,3);
-          lcd.print("                   ");
-          lcd.setCursor(0,3);
-          lcd.print("MaxPwrMode:");
-          lcd.setCursor(12,3);
-          lcd.print((illegalMode)?"Disabled":"Enabled "); //ooo fancy ternary operator
+        lcd.setCursor(0, 3);
+        lcd.print("                   ");
+        lcd.setCursor(0, 3);
+        lcd.print("MaxPwrMode:");
+        lcd.setCursor(12, 3);
+        lcd.print((illegalMode) ? "Disabled" : "Enabled "); //ooo fancy ternary operator
       }
       if (oldPercent != currentPercent || forceRedraw) {
-          lcd.setCursor(0,2);
-          lcd.print("                    ");
-          lcd.setCursor(0,2);
-          lcd.print("THT: ");
-          lcd.setCursor(5,2);
-          String throtBar = "";
-          int barSegments = map(currentPercent, 0, 100, 0, 14);
-          if (barSegments > 0) {
-            for (int i=0; i<=barSegments; i++) {
-              throtBar+="-";
-            }
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print("THT: ");
+        lcd.setCursor(5, 2);
+        String throtBar = "";
+        int barSegments = map(currentPercent, 0, 100, 0, 14);
+        if (barSegments > 0) {
+          for (int i = 0; i <= barSegments; i++) {
+            throtBar += "-";
           }
-          throtBar+=">"; //close bar
-          
-          lcd.print(throtBar);
+        }
+        throtBar += ">"; //close bar
+
+        lcd.print(throtBar);
       }
 
-      
+
       if (joystick.isPressed()) { //update joystick state in this mode so as to not waste processing power otherwise
         MASTER_STATE = 4;
       }
@@ -253,9 +253,9 @@ void loop() {
       delay(100);
       joystick.update();
       if (joystick.isPressed()) { //if joystick pressed
-        int offset = menuOffset+cursorOffset;
+        int offset = menuOffset + cursorOffset;
         if (offset != 0) { //offset is 0, so just return otherwise switch state
-          MASTER_STATE = offset+5; //force a screen redraw to paint initial state
+          MASTER_STATE = offset + 5; //force a screen redraw to paint initial state
           forceRedraw = true;
           return; //return because we don't want the state to be updated anymore
         } else {
@@ -268,23 +268,23 @@ void loop() {
         renderMenu();
         forceRedraw = false;
       }
-      
+
       break;
     case 6: //ridetime
       delay(100);
       if (forceRedraw) { //first paint
         lcd.clear();
-        lcd.setCursor(0,0);
+        lcd.setCursor(0, 0);
         lcd.print("Ride Time ----------");
-        lcd.setCursor(0,2);
+        lcd.setCursor(0, 2);
         lcd.print("Time Since Init");
         forceRedraw = false; //disable forced redraw
       } else {
-        lcd.setCursor(0,1);
-        lcd.print(timeToString(ridetime/1000)); //prints time riding
+        lcd.setCursor(0, 1);
+        lcd.print(timeToString(ridetime / 1000)); //prints time riding
         Serial.println(ridetime);
-        lcd.setCursor(0,3);
-        lcd.print(timeToString(millis()/1000)); //prints time since init
+        lcd.setCursor(0, 3);
+        lcd.print(timeToString(millis() / 1000)); //prints time since init
       }
       if (joystick.isPressed()) {
         MASTER_STATE = 2;
@@ -294,17 +294,17 @@ void loop() {
       delay(100);
       if (forceRedraw) {
         lcd.clear();
-        lcd.setCursor(0,0);
+        lcd.setCursor(0, 0);
         lcd.print("Temp ----------------");
-        lcd.setCursor(0,1);
+        lcd.setCursor(0, 1);
         lcd.print("T: ");
-        lcd.setCursor(0,2);
+        lcd.setCursor(0, 2);
         lcd.print("H: ");
-        lcd.setCursor(0,3);
+        lcd.setCursor(0, 3);
         lcd.print("HI: ");
         forceRedraw = false; //disable forced redraw
       }
-      
+
       //temp reading
       float h = dht.readHumidity();
       float f = dht.readTemperature(true);
@@ -317,24 +317,24 @@ void loop() {
       if (f > -1 && h > -1) {
         float hi = dht.computeHeatIndex(f, h);
         if (oldf != f || forceRedraw) {
-          lcd.setCursor(0,1);
+          lcd.setCursor(0, 1);
           lcd.print("T: ");
           lcd.print(f);
         }
         if (oldh != h || forceRedraw) {
-          lcd.setCursor(0,2);
+          lcd.setCursor(0, 2);
           lcd.print("H: ");
           lcd.print(h);
         }
         if (oldhi != hi || forceRedraw) {
-          lcd.setCursor(0,3);
+          lcd.setCursor(0, 3);
           lcd.print("HI: ");
           lcd.print(hi);
         }
         oldhi = hi; //reset oldhi
       } else {
         lcd.clear();
-        lcd.setCursor(0,1);
+        lcd.setCursor(0, 1);
         lcd.print("Error reading");
         delay(1000);
         MASTER_STATE = 2;
@@ -343,7 +343,7 @@ void loop() {
       oldf = f;
       oldh = h;
 
-      
+
       if (joystick.isPressed()) {
         MASTER_STATE = 2;
       }
@@ -352,7 +352,7 @@ void loop() {
       delay(100);
       if (forceRedraw) {
         lcd.clear();
-        lcd.setCursor(0,0);
+        lcd.setCursor(0, 0);
         lcd.print("not programmed press joystick to exit");
         forceRedraw = false; //disable forced redraw
       }
@@ -363,13 +363,13 @@ void loop() {
     case 9: //info
       if (forceRedraw) {
         lcd.clear();
-        lcd.setCursor(0,0);
+        lcd.setCursor(0, 0);
         lcd.print("Info --------------");
-        lcd.setCursor(0,1);
+        lcd.setCursor(0, 1);
         lcd.print("BikeOS MKII");
-        lcd.setCursor(0,2);
+        lcd.setCursor(0, 2);
         lcd.print("By Aaron Becker");
-        lcd.setCursor(0,3);
+        lcd.setCursor(0, 3);
         lcd.print("Copyright 2019");
         forceRedraw = false; //disable forced redraw
       }
@@ -377,7 +377,7 @@ void loop() {
         MASTER_STATE = 2;
       }
       break;
-      
+
     default: //hmm undefined state? so just reset
       Serial.println("State error: undefined state");
       Serial.println(MASTER_STATE);
@@ -385,25 +385,25 @@ void loop() {
       break;
   }
 
-/*******
- * THE ESSENTIAL CODE
- * Controls all the throttle stuff. Must run every loop to keep bike responsive. Very important, for saftey especially!
- ******/
+  /*******
+     THE ESSENTIAL CODE
+     Controls all the throttle stuff. Must run every loop to keep bike responsive. Very important, for saftey especially!
+   ******/
   throttleValue = analogRead(throt_pin);
   delay(50); //small delay so value isn't the same
   illegalMode = digitalRead(switch_pin);
   currentPercent = map(throttleValue, THROTTLE_MIN, THROTTLE_MAX, 0, 100);
 
-  
+
   if (illegalMode == HIGH) {
     //mult speed by constant or constrain: 2 approaches
     //speed = constrain(speed, 0, NON_ILLEGAL_SPEED_MAX);
     currentSpeed = map(throttleValue, THROTTLE_MIN, THROTTLE_MAX, ESC_MIN, ESC_LEGAL_MAX);    //map the 0 to 1024 ponts of analog read
-    
+
     lightLedIfSpeed(HIGH); //light high
   } else {
     currentSpeed = map(throttleValue, THROTTLE_MIN, THROTTLE_MAX, ESC_MIN, ESC_MAX);    //map the 0 to 1024 ponts of analog read
-    
+
     lightLedIfSpeed(ledState); //state according to millis loop
   }
 
@@ -419,9 +419,9 @@ void loop() {
       ledState = LOW;
     }
   }
-/*****
- * END ESSENTIAL CODE
- */
+  /*****
+     END ESSENTIAL CODE
+  */
 }
 
 
@@ -435,45 +435,61 @@ void lightLedIfSpeed(int _ledState) {
 
 void renderMenu() {
   lcd.clear();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("MENU --------------");
   int counter = menuOffset;
-  for (int i=1; i<=3; i++) { //only paint 3 rows (lcd height 4)
+  for (int i = 0; i < 3; i++) { //only paint 3 rows (lcd height 4)
     if (counter > numberOfStates) {
       counter = 0; //wrap it back around to print original states
     } else if (counter < 0) { //add number of states to wrap around (really shouldn't happen but in case it does)
       counter += numberOfStates;
     }
-    lcd.setCursor(0,i);
-    if (i-1 == cursorOffset) { //is the current row the row with the cursor
+    lcd.setCursor(0, i+1); //must add 1 because row count starts from 1
+    if (i == cursorOffset) { //is the current row the row with the cursor
       lcd.write(126); //print the right arrow
     }
-    lcd.setCursor(1,i);
-    lcd.print(menuStates[counter].substring(0,19)); //substring it so as to make it not break the screen logic
+    lcd.setCursor(1, i+1);
+    lcd.print(menuStates[counter].substring(0, 19)); //substring it so as to make it not break the screen logic
     counter++;
   }
 }
-
+/*
+ * CURSOR OFFSET | MENU OFFSET
+ * 0 0 (pressing down)
+ * 1 0
+ * 2 0
+ * 2 1
+ * 2 2
+ * 2 3
+ * 2 4
+ * 2 3 (pressing up)
+ * 2 2
+ * 2 1
+ * 2 0
+ * 1 0
+ * 0 0
+ * 0 14
+ */
 void changeMenuPosition(int change) {
   cursorOffset += change;
-  if (cursorOffset > 3) { //cursor is offscreen below
-    menuOffset = calculateMenuOffset(cursorOffset-3); //subtract the cursor change from the menuOffset
-    cursorOffset = 3;
+  if (cursorOffset > 2) { //cursor is offscreen below
+    menuOffset = calculateMenuOffset(cursorOffset - 2); //subtract the cursor change from the menuOffset
+    cursorOffset = 2;
   } else if (cursorOffset < 0) { //cursor is offscreen above
     menuOffset = calculateMenuOffset(cursorOffset); //add the cursor change from the menuOffset
     cursorOffset = 0; //set cursor to top row
   } //otherwise cursor must still be onscreen and offset has already been changed
-  
+
   while (menuOffset < 0) { //if offset is negative
     menuOffset += numberOfStates; //add states to wrap it
   }
 }
 
 int calculateMenuOffset(int change) {
-  
+
   int difference = change; //calculate offset considering displayHeight
 
-  while(difference > numberOfStates) { //while the offset it still greater than the number of states
+  while (difference > numberOfStates) { //while the offset it still greater than the number of states
     difference -= numberOfStates; //subtract number of states
   }
 
@@ -483,12 +499,12 @@ int calculateMenuOffset(int change) {
 // t is time in seconds = millis()/1000;
 char * timeToString(unsigned long t)
 {
- static char str[12];
- long h = t / 3600;
- t = t % 3600;
- int m = t / 60;
- int s = t % 60;
- sprintf(str, "%02ld:%02d:%02d", h, m, s);
- return str;
+  static char str[12];
+  long h = t / 3600;
+  t = t % 3600;
+  int m = t / 60;
+  int s = t % 60;
+  sprintf(str, "%02ld:%02d:%02d", h, m, s);
+  return str;
 }
 
