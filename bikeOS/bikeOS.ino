@@ -26,41 +26,89 @@
 #include "helper.h" //helper functions
 #include "joystickHelper.h" //joystick library
 
-
-int currentSpeed = 1200;
+//Current tracking values
+int currentSpeed = 1200; //in PPM
 int currentPercent = 0;
-int throttleValue = 0;
-int oldPercent = 0;
+int throttleValue = 0; //in percent
+
 int illegalMode = LOW;
-int oldIllegalMode = HIGH;
 boolean forceRedraw = false; //boolean to force a redraw of the display
 
-//all sensor values
-int reedVal;
-long timeBetweenRevolution;// time between one full rotation (in ms)
-long ridetime = 0;
-int mph;
-int oldmph;
-int maxReedTime = 2000; //maximum time between pulses
-float circumference = (14.25 * 2 * 3.14159); //radius 14.25 (measured)
-float odometer;
-float oldodometer;
-boolean canDecrementRidetime = true;
+//All 'old' variables - to keep track of changes between loop cycles
+//OLDVARS-Control
+int oldPercent = 0;
+int oldIllegalMode = HIGH;
 
+//OLDVARS-Sensors
+int oldmph;
 float oldf, oldh, oldhi;
+float oldodometer;
+
+
+//Sensor values
+//SENS-RIDING
+int reedVal;
+int maxReedTime = 2000; //maximum time between pulses
+long timeBetweenRevolution;// time between one full rotation (in ms)
+boolean canDecrementRidetime = true; //only remove time from rideTime if we're actually moving
 
 int maxReedCounter = 10; //min time (in ms) of one rotation (for debouncing)
-int reedCounter;
+int reedCounter; //ms since last rotation
 
-//menu stuff
+
+//The important variables
+float odometer;
+int mph;
+long ridetime = 0; //time spent with mph>0
+
+
+//Constants
+#define WHEEL_CIRCUMFERENCE = (14.5 * 2 * 3.14159); //radius 14.5? TODO TUNE THIS
+#define LED_ILLEGAL_MODE_INTERVAL 100
+
+//Menu Offsetting
 int menuOffset = 0;
 int cursorOffset = 0; //cursor offset from top
 
-unsigned long previousMillis = 0;
-#define LED_ILLEGAL_MODE_INTERVAL 100
+unsigned long illegalModePrevTime = 0;
+
 int ledState = LOW;
 
 int MASTER_STATE = 0; //state machine
+
+/*** THINGS TO IMPLEMENT
+APP_STATE vs MENU_STATE
+App state - i.e. init, control
+Everything packaged in classes
+
+menu its own class/library - decentralized from this file.
+called with menu.setMenuState, menu.getMenuState, etc like java
+menu.renderReturn returns array with 4 strings - output for display
+
+joystick its own class - reuse from old time
+swipe right/left to view sensor data. up/down on main screen to change the mode from PID to manual control
+PID like subaru control - instantly exits if anything is pressed (throttle change position, joystick clicked/moved, etc). also should always run in "legal" mode (ignores position of IllegalMode switch)
+
+MAIN SCREEN DISPLAY:
+Mode: Manual
+Throttle: X%
+IllegalMode: Enabled/Disabled
+MPH: mph mi, ODO: odo mi
+
+PID screen display:
+Mode: SemiAuto
+Setpoint: 10mph
+Click to inc/dec SP
+VESC actually controls PID of motor, but controller should linearly increase w/feedback from speed sensor. if no feedback, error out
+
+BIGMPH DISPLAY:
+mph in big font
+at bottom, odo
+
+
+
+
+*/
 
 //Initialize libs
 ServoTimer2 VESC; //Create VESC "servo" output
@@ -84,7 +132,7 @@ void setup() {
   //setup vesc
   VESC.attach(vesc_pin);
   VESC.write(ESC_MIN);           //The range of this ESC is 1000us to 1500 for CW and 1500 to 2000us for CCW
-  //That's why I map the values from 1505 to 2000u in order to avoid backwards rotations
+  //That's why I map the values from 1505 to 2000u in order to avoid backwards rotations (also requires configuring VESC in its own software)
   //setup temp
   dht.begin();
 
@@ -96,7 +144,7 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.print("Welcome!");
   lcd.setCursor(0, 1);
-  lcd.print("EBikeOS V1");
+  lcd.print("EBikeOS V2");
   lcd.setCursor(0, 2);
   lcd.print("By Aaron Becker");
   lcd.setCursor(0, 3);
@@ -132,7 +180,7 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
   reedVal = digitalRead(reed_pin);//get val of A0
   if (reedVal == LOW) { //if reed switch is closed
     if (reedCounter <= 0) { //min time between pulses has passed
-      mph = (56.8 * float(circumference)) / float(timeBetweenRevolution); //calculate miles per hour
+      mph = (56.8 * float(WHEEL_CIRCUMFERENCE)) / float(timeBetweenRevolution); //calculate miles per hour
       odometer += ((float(mph) / 60.0 / 60.0 / 1000.0) * float(timeBetweenRevolution)); //calculate miles moved and add to odometer; miles per milisecond*timer in ms
       timeBetweenRevolution = 0;//reset timer
       reedCounter = maxReedCounter; //reset reedCounter
@@ -157,8 +205,7 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
 }
 
 void loop() {
-  //Serial.println(analogRead(joystickSW));
-  wdt_reset(); //pat watchdog (in case it gets stuck in a loop);
+  wdt_reset(); //pat watchdog (in case it gets stuck in a loop)
   switch (MASTER_STATE) {
     case 0: //initial state. Sets up LCD with status message
       lcd.clear();
@@ -410,8 +457,8 @@ void loop() {
   currentSpeed = constrain(currentSpeed, ESC_MIN, ESC_MAX);       //make sure the signal will never be over the range
   VESC.write(currentSpeed);
 
-  if ((millis() - previousMillis) > LED_ILLEGAL_MODE_INTERVAL) { //toggle led state in background; will be activated during illegal mode
-    previousMillis = millis();
+  if ((millis() - illegalModePrevTime) > LED_ILLEGAL_MODE_INTERVAL) { //toggle led state in background; will be activated during illegal mode
+    illegalModePrevTime = millis();
 
     if (ledState == LOW) { //toggle ledState
       ledState = HIGH;
