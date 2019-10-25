@@ -25,7 +25,7 @@
 #include "pins.h" //pin definitions
 #include "helper.h" //helper functions
 #include "joystickHelper.h" //joystick library
-#include "bigFont.h" //joystick library
+#include "bigFont.h" //big font library
 
 //Current tracking values
 int currentSpeed = 1200; //in PPM
@@ -112,14 +112,22 @@ at bottom, odo
 */
 
 //Initialize libs
-ServoTimer2 VESC; //Create VESC "servo" output
+
+//SETUP LCD
 LiquidCrystal_I2C lcd(0x27, 20, 4); // set the LCD address to 0x27 for a 20 chars and 4 line display
+
+//SETUP VESC
+ServoTimer2 VESC; //Create VESC "servo" output
+
+//SETUP CUSTOM LIBRARIES
 joystickHelper joystick(joystickX, joystickY, joystickSW);
 DHT dht(temp_pin, tempType); //temperature sensor object
-bigFont customFont(lcd);
-//create menu object
+
+//SETUP MENU LIBRARIES
+
 String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
 int numberOfStates = 5;
+//BikeMenu menu(menuStates, lcd, bigFont, dht, joystick); //pass in everything
 
 void setup() {
   Serial.begin(57600);
@@ -142,14 +150,15 @@ void setup() {
   lcd.backlight(); //enable backlight
   lcd.home(); //clear lcd
 
+  delay(100);
+
   lcd.setCursor(0, 0);
-  lcd.print("Welcome!");
-  lcd.setCursor(0, 1);
-  lcd.print("EBikeOS V2");
-  lcd.setCursor(0, 2);
+  bigFont customFont(lcd); //big font object
+  customFont.writeString("BKOS2", 0, 0);
+  lcd.setCursor(0,3);
   lcd.print("By Aaron Becker");
-  lcd.setCursor(0, 3);
-  lcd.print("--------------------");
+
+  delay(10000);
 
   // TIMER SETUP- the timer interrupt allows precise timed measurements of the reed switch
   //for more info about configuration of arduino timers see http://arduino.cc/playground/Code/Timer1

@@ -11,21 +11,26 @@ Credit to Michael Pilcher, adapted by Aaron Becker
 
 //Constant data declaration
 
-int bigFont::writeString(String str, int x, int y) {
-  int strLen = str.length(); //optimize gang!
+int bigFont::writeString(String str, int xPos, int yPos) {
+  int strLen = str.length()+1; //optimize gang!
 
   char charBuffer[strLen];
   str.toCharArray(charBuffer, strLen);
 
   for (int i=0; i<strLen; i++) {
-    x += writeChar(charBuffer[i], x, y);
+    Serial.println(charBuffer[i]);
+    writeChar(charBuffer[i], xPos, yPos);
+    xPos+=4;
   }
 
-  return x; //returns new pos
+  return xPos; //returns new pos
 }
 
 int bigFont::writeChar(char tW, int x, int y) {
-  switch (tolower(tW)) { //lower case char, will only affect letters
+  if (tW >= 65 && tW <= 90) {
+    tW = tolower(tW);
+  }
+  switch (tW) { //lower case char, will only affect letters
     case '0':
     case 'o':
       custom0O(x, y);
@@ -161,16 +166,16 @@ void bigFont::custom0O(int offsetX, int offsetY)
 
 void bigFont::custom1(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(1);
   lcdRef.write(2);
-  lcdRef.setCursor(offsetX+1,1);
+  lcdRef.setCursor(offsetX+1, offsetY+1);
   lcdRef.write(255);
 }
 
 void bigFont::custom2(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(6);
   lcdRef.write(6);
   lcdRef.write(2);
@@ -182,7 +187,7 @@ void bigFont::custom2(int offsetX, int offsetY)
 
 void bigFont::custom3(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(6);
   lcdRef.write(6);
   lcdRef.write(2);
@@ -194,17 +199,17 @@ void bigFont::custom3(int offsetX, int offsetY)
 
 void bigFont::custom4(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(3);
   lcdRef.write(4);
   lcdRef.write(2);
-  lcdRef.setCursor(offsetX+2, 1);
+  lcdRef.setCursor(offsetX+2, offsetY+1);
   lcdRef.write(255);
 }
 
 void bigFont::custom5(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(6);
   lcdRef.write(6);
@@ -216,7 +221,7 @@ void bigFont::custom5(int offsetX, int offsetY)
 
 void bigFont::custom6(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(6);
   lcdRef.write(6);
@@ -228,17 +233,17 @@ void bigFont::custom6(int offsetX, int offsetY)
 
 void bigFont::custom7(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(1);
   lcdRef.write(1);
   lcdRef.write(2);
-  lcdRef.setCursor(offsetX+1, 1);
+  lcdRef.setCursor(offsetX+1, offsetY+1);
   lcdRef.write(8);
 }
 
 void bigFont::custom8(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(6);
   lcdRef.write(2);
@@ -250,17 +255,17 @@ void bigFont::custom8(int offsetX, int offsetY)
 
 void bigFont::custom9(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(6);
   lcdRef.write(2);
-  lcdRef.setCursor(offsetX+2, 1);
+  lcdRef.setCursor(offsetX+2, offsetY+1);
   lcdRef.write(255);
 }
 
 void bigFont::customA(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(6);
   lcdRef.write(2);
@@ -272,7 +277,7 @@ void bigFont::customA(int offsetX, int offsetY)
 
 void bigFont::customB(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(6);
   lcdRef.write(5);
@@ -284,11 +289,11 @@ void bigFont::customB(int offsetX, int offsetY)
 
 void bigFont::customC(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(1);
   lcdRef.write(1);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(3);
   lcdRef.write(4);
   lcdRef.write(4);
@@ -308,7 +313,7 @@ void bigFont::customD(int offsetX, int offsetY)
 
 void bigFont::customE(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(6);
   lcdRef.write(6);
@@ -320,7 +325,7 @@ void bigFont::customE(int offsetX, int offsetY)
 
 void bigFont::customF(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(6);
   lcdRef.write(6);
@@ -330,11 +335,11 @@ void bigFont::customF(int offsetX, int offsetY)
 
 void bigFont::customG(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(1);
   lcdRef.write(1);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(3);
   lcdRef.write(4);
   lcdRef.write(2);
@@ -342,7 +347,7 @@ void bigFont::customG(int offsetX, int offsetY)
 
 void bigFont::customH(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(4);
   lcdRef.write(255);
@@ -354,11 +359,11 @@ void bigFont::customH(int offsetX, int offsetY)
 
 void bigFont::customI(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(1);
   lcdRef.write(255);
   lcdRef.write(1);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(4);
   lcdRef.write(255);
   lcdRef.write(4);
@@ -366,9 +371,9 @@ void bigFont::customI(int offsetX, int offsetY)
 
 void bigFont::customJ(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX+2,0);
+  lcdRef.setCursor(offsetX+2, offsetY);
   lcdRef.write(255);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(4);
   lcdRef.write(4);
   lcdRef.write(5);
@@ -376,11 +381,11 @@ void bigFont::customJ(int offsetX, int offsetY)
 
 void bigFont::customK(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(4);
   lcdRef.write(5);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(255);
   lcdRef.write(254);
   lcdRef.write(2); 
@@ -388,9 +393,9 @@ void bigFont::customK(int offsetX, int offsetY)
 
 void bigFont::customL(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(255);
   lcdRef.write(4);
   lcdRef.write(4);
@@ -398,12 +403,12 @@ void bigFont::customL(int offsetX, int offsetY)
 
 void bigFont::customM(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(3);
   lcdRef.write(5);
   lcdRef.write(2);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(255);
   lcdRef.write(254);
   lcdRef.write(254);
@@ -412,12 +417,12 @@ void bigFont::customM(int offsetX, int offsetY)
 
 void bigFont::customN(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(2);
   lcdRef.write(254);
   lcdRef.write(255);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(255);
   lcdRef.write(254);
   lcdRef.write(3);
@@ -426,7 +431,7 @@ void bigFont::customN(int offsetX, int offsetY)
 
 void bigFont::customP(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(6);
   lcdRef.write(2);
@@ -436,7 +441,7 @@ void bigFont::customP(int offsetX, int offsetY)
 
 void bigFont::customQ(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(1);
   lcdRef.write(2);
@@ -449,11 +454,11 @@ void bigFont::customQ(int offsetX, int offsetY)
 
 void bigFont::customR(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(6);
   lcdRef.write(2);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(255);
   lcdRef.write(254);
   lcdRef.write(2); 
@@ -461,7 +466,7 @@ void bigFont::customR(int offsetX, int offsetY)
 
 void bigFont::customS(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(8);
   lcdRef.write(6);
   lcdRef.write(6);
@@ -473,11 +478,11 @@ void bigFont::customS(int offsetX, int offsetY)
 
 void bigFont::customT(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(1);
   lcdRef.write(255);
   lcdRef.write(1);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(254);
   lcdRef.write(255);
 }
@@ -501,19 +506,19 @@ void bigFont::customV(int offsetX, int offsetY)
   lcdRef.write(254);
   lcdRef.write(254); 
   lcdRef.write(5);
-  lcdRef.setCursor(offsetX+1, 1); 
+  lcdRef.setCursor(offsetX+1, offsetY+1); 
   lcdRef.write(2);  
   lcdRef.write(8);
 }
 
 void bigFont::customW(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.write(254);
   lcdRef.write(254);
   lcdRef.write(255);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(3);
   lcdRef.write(8);
   lcdRef.write(2);
@@ -522,11 +527,11 @@ void bigFont::customW(int offsetX, int offsetY)
 
 void bigFont::customX(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(3);
   lcdRef.write(4);
   lcdRef.write(5);
-  lcdRef.setCursor(offsetX,1);
+  lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(8);
   lcdRef.write(254);
   lcdRef.write(2); 
@@ -534,17 +539,17 @@ void bigFont::customX(int offsetX, int offsetY)
 
 void bigFont::customY(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(3);
   lcdRef.write(4);
   lcdRef.write(5);
-  lcdRef.setCursor(offsetX+1,1);
+  lcdRef.setCursor(offsetX+1, offsetY+1);
   lcdRef.write(255);
 }
 
 void bigFont::customZ(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(1);
   lcdRef.write(6);
   lcdRef.write(5);
@@ -556,7 +561,7 @@ void bigFont::customZ(int offsetX, int offsetY)
 
 void bigFont::customQM(int offsetX, int offsetY) //Question mark
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(1);
   lcdRef.write(6);
   lcdRef.write(2);
@@ -567,7 +572,7 @@ void bigFont::customQM(int offsetX, int offsetY) //Question mark
 
 void bigFont::customSM(int offsetX, int offsetY)
 {
-  lcdRef.setCursor(offsetX,0);
+  lcdRef.setCursor(offsetX, offsetY);
   lcdRef.write(255);
   lcdRef.setCursor(offsetX, offsetY+1);
   lcdRef.write(7);
