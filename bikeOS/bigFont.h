@@ -1,13 +1,17 @@
 #ifndef bigFont_h
 #define bigFont_h
 
+#include <LiquidCrystal_I2C.h>
+#include "Arduino.h"
+
 class bigFont {
   public:
     bigFont(LiquidCrystal_I2C & lcd);
-    int writeString(String characters);
+    int writeChar(char tW, int x, int y);
+    int writeString(String str, int x, int y);
   private:
     //Lcd reference; to allow direct writing to lcd
-    LiquidCrystal_I2C lcdRef;
+    LiquidCrystal_I2C & lcdRef;
 
     //Custom character storage
     /*byte C_LT;
@@ -18,6 +22,17 @@ class bigFont {
     byte C_LR;
     byte C_UMB;
     byte C_LMB;*/
+
+    //All number generating functions (0 is already defined down below)
+    void custom1(int offsetX, int offsetY);
+    void custom2(int offsetX, int offsetY);
+    void custom3(int offsetX, int offsetY);
+    void custom4(int offsetX, int offsetY);
+    void custom5(int offsetX, int offsetY);
+    void custom6(int offsetX, int offsetY);
+    void custom7(int offsetX, int offsetY);
+    void custom8(int offsetX, int offsetY);
+    void custom9(int offsetX, int offsetY);
 
     //All letter generating functions
     void customA(int offsetX, int offsetY);

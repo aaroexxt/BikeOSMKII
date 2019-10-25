@@ -25,6 +25,7 @@
 #include "pins.h" //pin definitions
 #include "helper.h" //helper functions
 #include "joystickHelper.h" //joystick library
+#include "bigFont.h" //joystick library
 
 //Current tracking values
 int currentSpeed = 1200; //in PPM
@@ -63,7 +64,7 @@ long ridetime = 0; //time spent with mph>0
 
 
 //Constants
-#define WHEEL_CIRCUMFERENCE = (14.5 * 2 * 3.14159); //radius 14.5? TODO TUNE THIS
+float WHEEL_CIRCUMFERENCE = (14.5 * 2 * 3.14159); //radius 14.5? TODO TUNE THIS
 #define LED_ILLEGAL_MODE_INTERVAL 100
 
 //Menu Offsetting
@@ -115,7 +116,7 @@ ServoTimer2 VESC; //Create VESC "servo" output
 LiquidCrystal_I2C lcd(0x27, 20, 4); // set the LCD address to 0x27 for a 20 chars and 4 line display
 joystickHelper joystick(joystickX, joystickY, joystickSW);
 DHT dht(temp_pin, tempType); //temperature sensor object
-
+bigFont customFont(lcd);
 //create menu object
 String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
 int numberOfStates = 5;
