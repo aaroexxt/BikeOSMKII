@@ -8,12 +8,10 @@
 ****************
 
 
-  Adapted from ElectroNoobs ESC Controller by Aaron Becker
+  Heavily adapted from ElectroNoobs ESC Controller by Aaron Becker
   EbikeOS by Aaron Becker. Let's get it
-  Coded in May/Jun 2019, today is Jun 12. hopefully I'll make this super advanced at some point but rn it's pretty basic
+  V1 May/Jun 2019, V2 Oct/Nov 2019
 */
-
-
 
 //Library defs
 #include <Arduino.h>
@@ -26,6 +24,8 @@
 #include "helper.h" //helper functions
 #include "joystickHelper.h" //joystick library
 #include "bigFont.h" //big font library
+#include "bikeMenu.h" //menu library
+#include "MemoryFree.h" //Free memory
 
 //Current tracking values
 int currentSpeed = 1200; //in PPM
@@ -119,15 +119,29 @@ LiquidCrystal_I2C lcd(0x27, 20, 4); // set the LCD address to 0x27 for a 20 char
 //SETUP VESC
 ServoTimer2 VESC; //Create VESC "servo" output
 
-//SETUP CUSTOM LIBRARIES
+//SETUP LIBRARIES
 joystickHelper joystick(joystickX, joystickY, joystickSW);
 DHT dht(temp_pin, tempType); //temperature sensor object
+bigFont bigFont(lcd); //big font object (pass in lcd)
 
 //SETUP MENU LIBRARIES
 
 String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
 int numberOfStates = 5;
-//BikeMenu menu(menuStates, lcd, bigFont, dht, joystick); //pass in everything
+BikeMenu menu(menuStates, lcd, bigFont, dht, joystick); //pass in everything
+
+
+//TIMER STUFF
+typedef void (*timerFuncPtr)(void); // Create a type to point to a funciton.
+struct timerElement { //Struct that contains a function pointer and a time to trigger it i.e. how often should we trigger?
+  timerFuncPtr func;
+  int time;
+};
+
+timerElement timedEvents[5] = {{memCheck, 30000}, {menu.update, 200}}; //create the timer
+const int timerElements = 5;
+
+long prevMillis[timerElements]; //auto sets to 0
 
 void setup() {
   Serial.begin(57600);
@@ -150,19 +164,16 @@ void setup() {
   lcd.backlight(); //enable backlight
   lcd.home(); //clear lcd
 
-  delay(100);
-
-  lcd.setCursor(0, 0);
-  bigFont customFont(lcd); //big font object
-  customFont.writeString("BKOS2", 0, 0);
-  lcd.setCursor(0,3);
-  lcd.print("By Aaron Becker");
-
-  delay(10000);
+  //Reset all LCD references because it's now initialized
+  bigFont.init(lcd);
+  bikeMenu.init(lcd, bigFont, dht, joystick);
+  bikeMenu.transitionState(0);
 
   // TIMER SETUP- the timer interrupt allows precise timed measurements of the reed switch
   //for more info about configuration of arduino timers see http://arduino.cc/playground/Code/Timer1
   cli();//stop interrupts
+  TCCR1B |= (1 << CS11);
+
 
   //set timer1 interrupt at 1kHz
   TCCR1A = 0;// set entire TCCR1A register to 0
@@ -172,9 +183,7 @@ void setup() {
   OCR1A = 1999;// = (1/1000) / ((1/(16*10^6))*8) - 1
   // turn on CTC mode
   TCCR1B |= (1 << WGM12);
-  // Set CS11 bit for 8 prescaler
-  TCCR1B |= (1 << CS11);
-  // enable timer compare interrupt
+  // Set CS11 bit for 8 prescaler  // enable timer compare interrupt
   TIMSK1 |= (1 << OCIE1A);
 
   sei();//allow interrupts
@@ -215,26 +224,34 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
 }
 
 void loop() {
-  wdt_reset(); //pat watchdog (in case it gets stuck in a loop)
+  wdt_reset(); //pat watchdog (in case arduino gets stuck in a loop)
+
+/* Master-state breakdown
+
+0 - initial, writes hello message
+1 - delay of hello message
+2 - print V1 lcd message once
+3 - update loop for 'V1 style' lcd
+4 - print V2 lcd message once
+5 - update loop for 'V2 style' lcd
+6 - menu
+7 - menu
+
+*/
   switch (MASTER_STATE) {
     case 0: //initial state. Sets up LCD with status message
-      lcd.clear();
-      lcd.print("System OK.");
-      lcd.setCursor(0, 1);
-      lcd.print("--------------------");
-      lcd.setCursor(0, 2);
-      lcd.print("Press joystick to");
-      lcd.setCursor(0, 3);
-      lcd.print("continue");
+      lcd.setCursor(0, 0);
+      bigFont.writeString("BKOS2", 0, 0);
+      lcd.setCursor(0,3);
+      lcd.print("By Aaron Becker");
 
       MASTER_STATE = 1;
       break;
-    case 1: //waits for joystick press
-      if (joystick.isPressed()) {
-        MASTER_STATE = 2; //boom switch states
-      }
+    case 1: //waits for time
+      delay(1000);
+      MASTER_STATE = 2; //boom switch states
       break;
-    case 2: //display basic LCD functions and then switch to state 3 (i.e. the main loop)
+    case 2: //V1 style LCD functions and then switch to state 3 (i.e. the main loop)
       lcd.clear();
       lcd.print("MPH:");
       lcd.setCursor(0, 1);
@@ -247,7 +264,7 @@ void loop() {
       forceRedraw = true; //force a redraw
       MASTER_STATE = 3;
       break;
-    case 3: //do all the main checks. If there's menu desire, switch to state 4
+    case 3: //do all the main checks. If there's menu desire, switch to state 6
       if (oldmph != mph || forceRedraw) {
         lcd.setCursor(0, 0);
         lcd.print("                   ");
@@ -301,12 +318,22 @@ void loop() {
       oldodometer = odometer;
       oldIllegalMode = illegalMode;
       break;
-    case 4: //paint menu screen
+
+    case 4:
+      lcd.clear();
+      bigFont.writeString("MPH: ", 0, 0);
+      bigFont.writeString("ODO: ", 0, 2);
+      lcd.setCursor(16, 4);
+      lcd.print("100%");
+      lcd.setCursor(16,3);
+      lcd.print("I:EN");
+
+    case 6: //paint menu screen
       renderMenu(); //render menu onto LCD
       delay(500);
       MASTER_STATE = 5;
       break;
-    case 5: //case to wait until joystick change and update x value
+    case 7: //case to wait until joystick change and update x value
       delay(100);
       joystick.update();
       if (joystick.isPressed()) { //if joystick pressed
@@ -327,7 +354,7 @@ void loop() {
       }
 
       break;
-    case 6: //ridetime
+    case 8: //ridetime
       delay(100);
       if (forceRedraw) { //first paint
         lcd.clear();
@@ -347,7 +374,7 @@ void loop() {
         MASTER_STATE = 2;
       }
       break;
-    case 7: //temp
+    case 9: //temp
       delay(100);
       if (forceRedraw) {
         lcd.clear();
@@ -405,7 +432,7 @@ void loop() {
         MASTER_STATE = 2;
       }
       break;
-    case 8: //beta cc mode
+    case 10: //beta cc mode
       delay(100);
       if (forceRedraw) {
         lcd.clear();
@@ -417,7 +444,7 @@ void loop() {
         MASTER_STATE = 2;
       }
       break;
-    case 9: //info
+    case 11: //info
       if (forceRedraw) {
         lcd.clear();
         lcd.setCursor(0, 0);
@@ -441,7 +468,27 @@ void loop() {
       MASTER_STATE = 0;
       break;
   }
+  
+  //Event checking
+  unsigned long currentMillis = millis();
+  for (int i=0; i<timerElements-1; i++) {
+    if (currentMillis-prevMillis[i] >= timedEvents[i].time) {
+      prevMillis[i] = currentMillis;
+      timedEvents[i].func(); //call function
+    }
+  }
 
+  //The bike code that does the driving
+  /*if (pidDrive.enabled) {
+    pidDrive.driveUpdate();
+  } else {
+    driveUpdateManual(); //update the bike motor power 
+  }*/
+  driveUpdateManual();
+  
+}
+
+void driveUpdateManual() { //the big boi code that controls whether to update drive
   /*******
      THE ESSENTIAL CODE
      Controls all the throttle stuff. Must run every loop to keep bike responsive. Very important, for saftey especially!
@@ -480,9 +527,7 @@ void loop() {
      END ESSENTIAL CODE
   */
 }
-
-
-void lightLedIfSpeed(int _ledState) {
+void lightLedIfSpeed(int _ledState) { //Function to check if throttle value is high enough to merit lighting lcd
   if (currentSpeed > MIN_SPEED_LED) {
     digitalWrite(led_pin, _ledState); //enable if high
   } else {
@@ -490,78 +535,13 @@ void lightLedIfSpeed(int _ledState) {
   }
 }
 
-void renderMenu() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("MENU --------------");
-  int counter = menuOffset;
-  for (int i = 0; i < 3; i++) { //only paint 3 rows (lcd height 4)
-    if (counter > numberOfStates) {
-      counter = 0; //wrap it back around to print original states
-    } else if (counter < 0) { //add number of states to wrap around (really shouldn't happen but in case it does)
-      counter += numberOfStates;
-    }
-    lcd.setCursor(0, i+1); //must add 1 because row count starts from 1
-    if (i == cursorOffset) { //is the current row the row with the cursor
-      lcd.write(126); //print the right arrow
-    }
-    lcd.setCursor(1, i+1);
-    lcd.print(menuStates[counter].substring(0, 19)); //substring it so as to make it not break the screen logic
-    counter++;
+void memCheck() {
+  if (freeMemory() < 100) { //we're running out of memory space
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Memory critical");
+    lcd.setCursor(0,1);
+    lcd.print("Arduino restarting");
+    while(1){} //hang until watchdog resets processor
   }
 }
-/*
- * CURSOR OFFSET | MENU OFFSET
- * 0 0 (pressing down)
- * 1 0
- * 2 0
- * 2 1
- * 2 2
- * 2 3
- * 2 4
- * 2 3 (pressing up)
- * 2 2
- * 2 1
- * 2 0
- * 1 0
- * 0 0
- * 0 14
- */
-void changeMenuPosition(int change) {
-  cursorOffset += change;
-  if (cursorOffset > 2) { //cursor is offscreen below
-    menuOffset = calculateMenuOffset(cursorOffset - 2); //subtract the cursor change from the menuOffset
-    cursorOffset = 2;
-  } else if (cursorOffset < 0) { //cursor is offscreen above
-    menuOffset = calculateMenuOffset(cursorOffset); //add the cursor change from the menuOffset
-    cursorOffset = 0; //set cursor to top row
-  } //otherwise cursor must still be onscreen and offset has already been changed
-
-  while (menuOffset < 0) { //if offset is negative
-    menuOffset += numberOfStates; //add states to wrap it
-  }
-}
-
-int calculateMenuOffset(int change) {
-
-  int difference = change; //calculate offset considering displayHeight
-
-  while (difference > numberOfStates) { //while the offset it still greater than the number of states
-    difference -= numberOfStates; //subtract number of states
-  }
-
-  return difference;
-}
-
-// t is time in seconds = millis()/1000;
-char * timeToString(unsigned long t)
-{
-  static char str[12];
-  long h = t / 3600;
-  t = t % 3600;
-  int m = t / 60;
-  int s = t % 60;
-  sprintf(str, "%02ld:%02d:%02d", h, m, s);
-  return str;
-}
-
