@@ -64,15 +64,19 @@ void renderMenu() {
 void changeMenuPosition(int change) {
   cursorOffset += change;
   if (cursorOffset > 2) { //cursor is offscreen below
-    menuOffset = calculateMenuOffset(cursorOffset - 2); //subtract the cursor change from the menuOffset
+    menuOffset += calculateMenuOffset(cursorOffset - 2); //subtract the cursor change from the menuOffset
     cursorOffset = 2;
   } else if (cursorOffset < 0) { //cursor is offscreen above
-    menuOffset = calculateMenuOffset(cursorOffset); //add the cursor change from the menuOffset
+    menuOffset -= calculateMenuOffset(cursorOffset); //add the cursor change from the menuOffset
     cursorOffset = 0; //set cursor to top row
   } //otherwise cursor must still be onscreen and offset has already been changed
 
   while (menuOffset < 0) { //if offset is negative
     menuOffset += numberOfStates; //add states to wrap it
+  }
+
+  while (menuOffset > numberOfStates) { //if offset is positive over limit
+    menuOffset -= numberOfStates; //remove states to wrap it
   }
 }
 
