@@ -128,7 +128,7 @@ bigFont bigFont(lcd); //big font object (pass in lcd)
 
 String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
 int numberOfStates = 5;
-BikeMenu menu(menuStates, lcd, bigFont, dht, joystick); //pass in everything
+BikeMenu menu(menuStates, lcd, bigFont); //pass in everything
 
 
 //TIMER STUFF
@@ -138,7 +138,7 @@ struct timerElement { //Struct that contains a function pointer and a time to tr
   int time;
 };
 
-timerElement timedEvents[5] = {{memCheck, 30000}, {menu.update, 200}}; //create the timer
+timerElement timedEvents[5] = {{memCheck, 30000}}; //create the timer
 const int timerElements = 5;
 
 long prevMillis[timerElements]; //auto sets to 0
@@ -166,7 +166,7 @@ void setup() {
 
   //Reset all LCD references because it's now initialized
   bigFont.init(lcd);
-  bikeMenu.init(lcd, bigFont, dht, joystick);
+  bikeMenu.init(lcd, bigFont);
   bikeMenu.transitionState(0);
 
   // TIMER SETUP- the timer interrupt allows precise timed measurements of the reed switch
@@ -244,27 +244,11 @@ void loop() {
       bigFont.writeString("BKOS2", 0, 0);
       lcd.setCursor(0,3);
       lcd.print("By Aaron Becker");
+      delay(1500); //small delay
 
-      MASTER_STATE = 1;
+      transitionState(1, true); //switch state
       break;
-    case 1: //waits for time
-      delay(1000);
-      MASTER_STATE = 2; //boom switch states
-      break;
-    case 2: //V1 style LCD functions and then switch to state 3 (i.e. the main loop)
-      lcd.clear();
-      lcd.print("MPH:");
-      lcd.setCursor(0, 1);
-      lcd.print("ODO:");
-      lcd.setCursor(0, 2);
-      lcd.print("THT:");
-      lcd.setCursor(0, 3);
-      lcd.print("IllegalMode:");
-
-      forceRedraw = true; //force a redraw
-      MASTER_STATE = 3;
-      break;
-    case 3: //do all the main checks. If there's menu desire, switch to state 6
+    case 1: //V1 style lcd update loop
       if (oldmph != mph || forceRedraw) {
         lcd.setCursor(0, 0);
         lcd.print("                   ");
@@ -309,7 +293,7 @@ void loop() {
 
 
       if (joystick.isPressed()) { //update joystick state in this mode so as to not waste processing power otherwise
-        MASTER_STATE = 4;
+        transitionState(6);
       }
 
       //reset various "old" variables
@@ -318,8 +302,7 @@ void loop() {
       oldodometer = odometer;
       oldIllegalMode = illegalMode;
       break;
-
-    case 4:
+    case 2:
       lcd.clear();
       bigFont.writeString("MPH: ", 0, 0);
       bigFont.writeString("ODO: ", 0, 2);
@@ -527,6 +510,36 @@ void driveUpdateManual() { //the big boi code that controls whether to update dr
      END ESSENTIAL CODE
   */
 }
+
+void transitionStateReal(int newState, boolean forceRD) {
+  forceRedraw = forceRD;
+  MASTER_STATE = newState;
+
+  switch (newState) { //do something when transitioning states
+    case 1:
+      lcd.clear();
+      lcd.print("MPH:");
+      lcd.setCursor(0, 1);
+      lcd.print("ODO:");
+      lcd.setCursor(0, 2);
+      lcd.print("THT:");
+      lcd.setCursor(0, 3);
+      lcd.print("IllegalMode:");
+      break;
+  }
+
+}
+
+//Overloaded constructors
+void transitionState(int newState) {
+  transitionStateReal(newState, false);
+}
+
+void transitionState(int newState, boolean forceRD) {
+  transitionStateReal(newState, forceRD);
+}
+
+
 void lightLedIfSpeed(int _ledState) { //Function to check if throttle value is high enough to merit lighting lcd
   if (currentSpeed > MIN_SPEED_LED) {
     digitalWrite(led_pin, _ledState); //enable if high
