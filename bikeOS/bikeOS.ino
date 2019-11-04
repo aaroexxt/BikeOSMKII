@@ -67,10 +67,6 @@ long ridetime = 0; //time spent with mph>0
 float WHEEL_CIRCUMFERENCE = (14.5 * 2 * 3.14159); //radius 14.5? TODO TUNE THIS
 #define LED_ILLEGAL_MODE_INTERVAL 100
 
-//Menu Offsetting
-int menuOffset = 0;
-int cursorOffset = 0; //cursor offset from top
-
 unsigned long illegalModePrevTime = 0;
 
 int ledState = LOW;
@@ -128,7 +124,7 @@ bigFont bigFont(lcd); //big font object (pass in lcd)
 
 String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
 int numberOfStates = 5;
-BikeMenu menu(menuStates, lcd, bigFont); //pass in everything
+BikeMenu menu(menuStates, lcd); //pass in everything
 
 
 //TIMER STUFF
@@ -167,7 +163,6 @@ void setup() {
   //Reset all LCD references because it's now initialized
   bigFont.init(lcd);
   bikeMenu.init(lcd, bigFont);
-  bikeMenu.transitionState(0);
 
   // TIMER SETUP- the timer interrupt allows precise timed measurements of the reed switch
   //for more info about configuration of arduino timers see http://arduino.cc/playground/Code/Timer1
@@ -546,6 +541,18 @@ void lightLedIfSpeed(int _ledState) { //Function to check if throttle value is h
   } else {
     digitalWrite(led_pin, LOW); //disable if speed low
   }
+}
+
+// t is time in seconds = millis()/1000;
+char * timeToString(unsigned long t)
+{
+  static char str[12];
+  long h = t / 3600;
+  t = t % 3600;
+  int m = t / 60;
+  int s = t % 60;
+  sprintf(str, "%02ld:%02d:%02d", h, m, s);
+  return str;
 }
 
 void memCheck() {

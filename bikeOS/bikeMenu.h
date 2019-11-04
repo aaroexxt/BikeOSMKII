@@ -5,23 +5,23 @@
 class bikeMenu {
   public:
     bikeMenu(String[] menuStates, int states);
-    void init(LiquidCrystal_I2C & lcd, bigFont & customFont, DHT & dht, joystickHelper & joystickHelper);
-    void transitionState(int newState);
-    void transitonState(int newState, boolean forceRedraw);
+    void init(LiquidCrystal_I2C & lcd, bigFont & customFont);
+    int changeMenuPosition(int change);
     void renderMenu(boolean forceRedraw);
   private:
     //Menu states
     String[] _menuStates;
     int _states;
+    int _menuOffset;
+    int _cursorOffset;
 
     //Menu state
-    int currentState;
+    int _currentState;
+    int calculateMenuOffset(int change);
 
     //References
     LiquidCrystal_I2C & lcdRef;
     bigFont & fontRef;
-    DHT & dhtRef;
-    joystickHelper & joystickRef;
 };
 
 #endif
