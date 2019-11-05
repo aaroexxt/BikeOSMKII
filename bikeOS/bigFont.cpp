@@ -141,8 +141,6 @@ int bigFont::writeChar(char tW, int x, int y) {
   return x+4; //return new xPos
 }
 
-bigFont::bigFont() {}
-
 bigFont::bigFont(LiquidCrystal_I2C & lcd) : lcdRef (lcd) {
   //Assign segments write numbers
   lcdRef.createChar(8,C_LT);

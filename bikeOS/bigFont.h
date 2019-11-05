@@ -7,7 +7,6 @@
 class bigFont {
   public:
     bigFont(LiquidCrystal_I2C & lcd);
-    bigFont();
     int writeChar(char tW, int x, int y);
     int writeString(String str, int x, int y);
   private:

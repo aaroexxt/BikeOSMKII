@@ -5,7 +5,6 @@
 class bikeMenu {
   public:
     bikeMenu(String menuStates[], int states, LiquidCrystal_I2C & lcd);
-    bikeMenu();
     int changeMenuPosition(int change);
     void renderMenu();
     int getOffset();
