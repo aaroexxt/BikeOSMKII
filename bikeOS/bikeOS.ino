@@ -79,8 +79,8 @@ App state - i.e. init, control
 Everything packaged in classes
 
 menu its own class/library - decentralized from this file.
-called with menu.setMenuState, menu.getMenuState, etc like java
-menu.renderReturn returns array with 4 strings - output for display
+called with menu->setMenuState, menu->getMenuState, etc like java
+menu->renderReturn returns array with 4 strings - output for display
 
 joystick its own class - reuse from old time
 swipe right/left to view sensor data. up/down on main screen to change the mode from PID to manual control
@@ -118,14 +118,12 @@ ServoTimer2 VESC; //Create VESC "servo" output
 //SETUP LIBRARIES
 joystickHelper joystick(joystickX, joystickY, joystickSW);
 DHT dht(temp_pin, tempType); //temperature sensor object
-bigFont bigFont(lcd); //big font object (pass in lcd)
+bigFont *font;
+bikeMenu *menu;
 
-//SETUP MENU LIBRARIES
-
+//SETUP MENU CONSTANTS
 String menuStates[5] = {"Back", "Ride Time", "Temperature", "BETA CC Mode", "Info"};
-int numberOfStates = 5;
-BikeMenu menu(menuStates, lcd); //pass in everything
-
+const int numberOfMenuStates = 5;
 
 //TIMER STUFF
 typedef void (*timerFuncPtr)(void); // Create a type to point to a funciton.
@@ -134,11 +132,23 @@ struct timerElement { //Struct that contains a function pointer and a time to tr
   int time;
 };
 
+//TIMER FUNCTIONS
+void memCheck() {
+  if (freeMemory() < 100) { //we're running out of memory space
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Memory critical");
+    lcd.setCursor(0,1);
+    lcd.print("Arduino restarting");
+    while(1){} //hang until watchdog resets processor
+  }
+}
+
+//TIMER ARRAY INITIALIZATION
 timerElement timedEvents[5] = {{memCheck, 30000}}; //create the timer
-const int timerElements = 5;
+const int timerElements = 1;
 
 long prevMillis[timerElements]; //auto sets to 0
-
 void setup() {
   Serial.begin(57600);
   //setup pins
@@ -161,8 +171,10 @@ void setup() {
   lcd.home(); //clear lcd
 
   //Reset all LCD references because it's now initialized
-  bigFont.init(lcd);
-  bikeMenu.init(lcd, bigFont);
+  bigFont pFont(lcd); //big font object (pass in lcd)
+  bikeMenu pMenu(menuStates, numberOfMenuStates, lcd); //pass in everything
+  font = &pFont;
+  menu = &pMenu;
 
   // TIMER SETUP- the timer interrupt allows precise timed measurements of the reed switch
   //for more info about configuration of arduino timers see http://arduino.cc/playground/Code/Timer1
@@ -236,7 +248,7 @@ void loop() {
   switch (MASTER_STATE) {
     case 0: //initial state. Sets up LCD with status message
       lcd.setCursor(0, 0);
-      bigFont.writeString("BKOS2", 0, 0);
+      font->writeString("BKOS2", 0, 0);
       lcd.setCursor(0,3);
       lcd.print("By Aaron Becker");
       delay(1500); //small delay
@@ -299,15 +311,15 @@ void loop() {
       break;
     case 2:
       lcd.clear();
-      bigFont.writeString("MPH: ", 0, 0);
-      bigFont.writeString("ODO: ", 0, 2);
+      font->writeString("MPH: ", 0, 0);
+      font->writeString("ODO: ", 0, 2);
       lcd.setCursor(16, 4);
       lcd.print("100%");
       lcd.setCursor(16,3);
       lcd.print("I:EN");
 
     case 6: //paint menu screen
-      renderMenu(); //render menu onto LCD
+      menu->renderMenu(); //render menu onto LCD
       delay(500);
       MASTER_STATE = 5;
       break;
@@ -315,7 +327,7 @@ void loop() {
       delay(100);
       joystick.update();
       if (joystick.isPressed()) { //if joystick pressed
-        int offset = menuOffset + cursorOffset;
+        int offset = menu->getOffset();
         if (offset != 0) { //offset is 0, so just return otherwise switch state
           MASTER_STATE = offset + 5; //force a screen redraw to paint initial state
           forceRedraw = true;
@@ -326,8 +338,8 @@ void loop() {
       }
 
       if (joystick.movement) {
-        changeMenuPosition((joystick.down) ? 1 : -1); //change the position according to the magnitude of the joystick press
-        renderMenu();
+        menu->changeMenuPosition((joystick.down) ? 1 : -1); //change the position according to the magnitude of the joystick press
+        menu->renderMenu();
         forceRedraw = false;
       }
 
@@ -553,15 +565,4 @@ char * timeToString(unsigned long t)
   int s = t % 60;
   sprintf(str, "%02ld:%02d:%02d", h, m, s);
   return str;
-}
-
-void memCheck() {
-  if (freeMemory() < 100) { //we're running out of memory space
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("Memory critical");
-    lcd.setCursor(0,1);
-    lcd.print("Arduino restarting");
-    while(1){} //hang until watchdog resets processor
-  }
 }

@@ -5,7 +5,9 @@
 #include "DHT.h"
 #include "joystickHelper.h" //joystick library
 
-bikeMenu::bikeMenu(String[] menuStates, int states) {
+bikeMenu::bikeMenu() {}
+
+bikeMenu::bikeMenu(String *menuStates, int states, LiquidCrystal_I2C & lcd) : lcdRef (lcd){ //Initialize references
   _menuStates = menuStates;
   _numberOfStates = states;
 
@@ -15,11 +17,8 @@ bikeMenu::bikeMenu(String[] menuStates, int states) {
   _currentState = 0;
 }
 
-bikeMenu::init(LiquidCrystal_I2C & lcd, bigFont & customFont) : lcdRef (lcd) : fontRef (customFont) {}
-//Initializes all references to what's passed in
-
-int bikeMenu::getMenuOffset() {
-  return _menuOffset;
+int bikeMenu::getOffset() {
+  return _menuOffset + _cursorOffset;
 }
 
 void bikeMenu::renderMenu() {
@@ -65,7 +64,7 @@ int bikeMenu::changeMenuPosition(int change) {
   if (_cursorOffset > 2) { //cursor is offscreen below
     _menuOffset += calculateMenuOffset(_cursorOffset - 2); //subtract the cursor change from the menuOffset
     _cursorOffset = 2;
-  } else if (cursorOffset < 0) { //cursor is offscreen above
+  } else if (_cursorOffset < 0) { //cursor is offscreen above
     _menuOffset -= calculateMenuOffset(_cursorOffset); //add the cursor change from the menuOffset
     _cursorOffset = 0; //set cursor to top row
   } //otherwise cursor must still be onscreen and offset has already been changed
@@ -83,8 +82,8 @@ int bikeMenu::calculateMenuOffset(int change) {
 
   int difference = change; //calculate offset considering displayHeight
 
-  while (difference > numberOfStates) { //while the offset it still greater than the number of states
-    difference -= numberOfStates; //subtract number of states
+  while (difference > _numberOfStates) { //while the offset it still greater than the number of states
+    difference -= _numberOfStates; //subtract number of states
   }
 
   return difference;

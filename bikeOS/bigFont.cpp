@@ -26,8 +26,6 @@ int bigFont::writeString(String str, int xPos, int yPos) {
   return xPos; //returns new pos
 }
 
-void bigFont::init(LiquidCrystal_I2C & lcd) : lcdRef (lcd) {} //allow resetting of LCD reference
-
 int bigFont::writeChar(char tW, int x, int y) {
   if (tW >= 65 && tW <= 90) {
     tW = tolower(tW);
@@ -142,6 +140,8 @@ int bigFont::writeChar(char tW, int x, int y) {
   }
   return x+4; //return new xPos
 }
+
+bigFont::bigFont() {}
 
 bigFont::bigFont(LiquidCrystal_I2C & lcd) : lcdRef (lcd) {
   //Assign segments write numbers

@@ -4,14 +4,15 @@
 
 class bikeMenu {
   public:
-    bikeMenu(String[] menuStates, int states);
-    void init(LiquidCrystal_I2C & lcd, bigFont & customFont);
+    bikeMenu(String menuStates[], int states, LiquidCrystal_I2C & lcd);
+    bikeMenu();
     int changeMenuPosition(int change);
-    void renderMenu(boolean forceRedraw);
+    void renderMenu();
+    int getOffset();
   private:
     //Menu states
-    String[] _menuStates;
-    int _states;
+    String *_menuStates;
+    int _numberOfStates;
     int _menuOffset;
     int _cursorOffset;
 
@@ -21,7 +22,6 @@ class bikeMenu {
 
     //References
     LiquidCrystal_I2C & lcdRef;
-    bigFont & fontRef;
 };
 
 #endif
