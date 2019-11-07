@@ -311,12 +311,25 @@ void loop() {
       break;
     case 2:
       lcd.clear();
-      font->writeString("MPH: ", 0, 0);
-      font->writeString("ODO: ", 0, 2);
+      font->writeString("MPH:", 0, 0);
+      font->writeString("ODO:", 0, 2);
       lcd.setCursor(16, 4);
       lcd.print("100%");
       lcd.setCursor(16,3);
       lcd.print("I:EN");
+
+      if (oldIllegalMode != illegalMode || forceRedraw) {
+        lcd.setCursor(18,3);
+        lcd.print((illegalMode)?"EN":"DS");
+      }
+
+      
+
+      //reset various "old" variables
+      forceRedraw = false;
+      oldmph = mph;
+      oldodometer = odometer;
+      oldIllegalMode = illegalMode;
 
     case 6: //paint menu screen
       menu->renderMenu(); //render menu onto LCD
