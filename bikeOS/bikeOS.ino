@@ -41,9 +41,9 @@ int oldPercent = 0;
 int oldIllegalMode = HIGH;
 
 //OLDVARS-Sensors
-int oldmph;
-float oldf, oldh, oldhi;
-float oldodometer;
+int oldMph;
+float oldF, oldH, oldHi;
+float oldOdometer;
 
 
 //Sensor values
@@ -73,8 +73,11 @@ int ledState = LOW;
 
 int MASTER_STATE = 0; //state machine
 
+#define LCD_MENU_STYLE 2 //menu style 2
+
 /*** THINGS TO IMPLEMENT
 APP_STATE vs MENU_STATE
+PROGMEM for bigFont stuff and menu stuff
 App state - i.e. init, control
 Everything packaged in classes
 
@@ -253,10 +256,10 @@ void loop() {
       lcd.print("By Aaron Becker");
       delay(1500); //small delay
 
-      transitionState(1, true); //switch state
+      transitionState(LCD_MENU_STYLE, true); //switch state
       break;
     case 1: //V1 style lcd update loop
-      if (oldmph != mph || forceRedraw) {
+      if (oldMph != mph || forceRedraw) {
         lcd.setCursor(0, 0);
         lcd.print("                   ");
         lcd.setCursor(0, 0);
@@ -264,7 +267,7 @@ void loop() {
         lcd.setCursor(5, 0);
         lcd.print(mph);
       }
-      if (oldodometer != odometer || forceRedraw) {
+      if (oldOdometer != odometer || forceRedraw) {
         lcd.setCursor(0, 1);
         lcd.print("                   ");
         lcd.setCursor(0, 1);
@@ -298,66 +301,70 @@ void loop() {
         lcd.print(throtBar);
       }
 
+      if (joystick.isPressed()) { //update joystick state in this mode so as to not waste processing power otherwise
+        transitionState(6);
+      }
+
+      //reset various "old" variables
+      oldMph = mph;
+      oldOdometer = odometer;
+      oldIllegalMode = illegalMode;
+      oldPercent = currentPercent;
+      break;
+    case 2: //V2 style lcd update loop
+
+      //Run all the checks
+      if (oldIllegalMode != illegalMode || forceRedraw) {
+        lcd.setCursor(17,3);
+        lcd.print((illegalMode)?"EN":"DS");
+      }
+
+      if (oldPercent != currentPercent || forceRedraw) {
+        lcd.setCursor(15,4);
+        lcd.print(currentPercent);
+        lcd.setCursor(19,4);
+        lcd.print("%");
+      }
+
+      if (oldMph != mph || forceRedraw) {
+        lcd.setCursor(16,0);
+        lcd.print(String(mph).substring(0, 4));
+      }
+
+      if (oldOdometer != odometer || forceRedraw) {
+        lcd.setCursor(16,2);
+        lcd.print(String(odometer).substring(0, 4));
+      }
 
       if (joystick.isPressed()) { //update joystick state in this mode so as to not waste processing power otherwise
         transitionState(6);
       }
 
       //reset various "old" variables
-      forceRedraw = false;
-      oldmph = mph;
-      oldodometer = odometer;
+      oldMph = mph;
+      oldOdometer = odometer;
       oldIllegalMode = illegalMode;
-      break;
-    case 2:
-      lcd.clear();
-      font->writeString("MPH:", 0, 0);
-      font->writeString("ODO:", 0, 2);
-      lcd.setCursor(16, 4);
-      lcd.print("100%");
-      lcd.setCursor(16,3);
-      lcd.print("I:EN");
-
-      if (oldIllegalMode != illegalMode || forceRedraw) {
-        lcd.setCursor(18,3);
-        lcd.print((illegalMode)?"EN":"DS");
-      }
-
-      
-
-      //reset various "old" variables
-      forceRedraw = false;
-      oldmph = mph;
-      oldodometer = odometer;
-      oldIllegalMode = illegalMode;
-
-    case 6: //paint menu screen
-      menu->renderMenu(); //render menu onto LCD
-      delay(500);
-      MASTER_STATE = 5;
-      break;
-    case 7: //case to wait until joystick change and update x value
-      delay(100);
+      oldPercent = currentPercent;
+    case 3: //menu on screen; case to wait until joystick change and update x value
+      delay(100); //don't update too quickly
       joystick.update();
       if (joystick.isPressed()) { //if joystick pressed
         int offset = menu->getOffset();
         if (offset != 0) { //offset is 0, so just return otherwise switch state
-          MASTER_STATE = offset + 5; //force a screen redraw to paint initial state
-          forceRedraw = true;
+          transitionState(offset + 4, true); //force a screen redraw to paint initial state
           return; //return because we don't want the state to be updated anymore
         } else {
-          MASTER_STATE = 2;
+          transitionState(LCD_MENU_STYLE, true);
         }
       }
 
-      if (joystick.movement) {
+      if (joystick.movement) { //is joystick moved? change menu state
         menu->changeMenuPosition((joystick.down) ? 1 : -1); //change the position according to the magnitude of the joystick press
         menu->renderMenu();
-        forceRedraw = false;
       }
 
       break;
-    case 8: //ridetime
+    case 4: //ridetime
       delay(100);
       if (forceRedraw) { //first paint
         lcd.clear();
@@ -365,7 +372,6 @@ void loop() {
         lcd.print("Ride Time ----------");
         lcd.setCursor(0, 2);
         lcd.print("Time Since Init");
-        forceRedraw = false; //disable forced redraw
       } else {
         lcd.setCursor(0, 1);
         lcd.print(timeToString(ridetime / 1000)); //prints time riding
@@ -374,10 +380,10 @@ void loop() {
         lcd.print(timeToString(millis() / 1000)); //prints time since init
       }
       if (joystick.isPressed()) {
-        MASTER_STATE = 2;
+        transitionState(LCD_MENU_STYLE,true);
       }
       break;
-    case 9: //temp
+    case 5: //temp
       delay(100);
       if (forceRedraw) {
         lcd.clear();
@@ -389,7 +395,6 @@ void loop() {
         lcd.print("H: ");
         lcd.setCursor(0, 3);
         lcd.print("HI: ");
-        forceRedraw = false; //disable forced redraw
       }
 
       //temp reading
@@ -403,22 +408,22 @@ void loop() {
       }
       if (f > -1 && h > -1) {
         float hi = dht.computeHeatIndex(f, h);
-        if (oldf != f || forceRedraw) {
+        if (oldF != f || forceRedraw) {
           lcd.setCursor(0, 1);
           lcd.print("T: ");
           lcd.print(f);
         }
-        if (oldh != h || forceRedraw) {
+        if (oldH != h || forceRedraw) {
           lcd.setCursor(0, 2);
           lcd.print("H: ");
           lcd.print(h);
         }
-        if (oldhi != hi || forceRedraw) {
+        if (oldHi != hi || forceRedraw) {
           lcd.setCursor(0, 3);
           lcd.print("HI: ");
           lcd.print(hi);
         }
-        oldhi = hi; //reset oldhi
+        oldHi = hi; //reset oldHi
       } else {
         lcd.clear();
         lcd.setCursor(0, 1);
@@ -427,27 +432,26 @@ void loop() {
         MASTER_STATE = 2;
       }
       //reset old storage vars
-      oldf = f;
-      oldh = h;
+      oldF = f;
+      oldH = h;
 
 
       if (joystick.isPressed()) {
-        MASTER_STATE = 2;
+        transitionState(LCD_MENU_STYLE,true);
       }
       break;
-    case 10: //beta cc mode
+    case 6: //beta cc mode
       delay(100);
       if (forceRedraw) {
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("not programmed press joystick to exit");
-        forceRedraw = false; //disable forced redraw
       }
       if (joystick.isPressed()) {
-        MASTER_STATE = 2;
+        transitionState(LCD_MENU_STYLE,true);
       }
       break;
-    case 11: //info
+    case 7: //info
       if (forceRedraw) {
         lcd.clear();
         lcd.setCursor(0, 0);
@@ -458,17 +462,16 @@ void loop() {
         lcd.print("By Aaron Becker");
         lcd.setCursor(0, 3);
         lcd.print("Copyright 2019");
-        forceRedraw = false; //disable forced redraw
       }
       if (joystick.isPressed()) {
-        MASTER_STATE = 2;
+        transitionState(LCD_MENU_STYLE,true);
       }
       break;
 
     default: //hmm undefined state? so just reset
       Serial.println("State error: undefined state");
       Serial.println(MASTER_STATE);
-      MASTER_STATE = 0;
+      transitionState(0);
       break;
   }
   
@@ -488,6 +491,9 @@ void loop() {
     driveUpdateManual(); //update the bike motor power 
   }*/
   driveUpdateManual();
+
+  //Disable forced redraw
+  forceRedraw = false; //disable forced redraw
   
 }
 
@@ -536,7 +542,7 @@ void transitionStateReal(int newState, boolean forceRD) {
   MASTER_STATE = newState;
 
   switch (newState) { //do something when transitioning states
-    case 1:
+    case 1: //V1 style menu initial paint
       lcd.clear();
       lcd.print("MPH:");
       lcd.setCursor(0, 1);
@@ -545,6 +551,19 @@ void transitionStateReal(int newState, boolean forceRD) {
       lcd.print("THT:");
       lcd.setCursor(0, 3);
       lcd.print("IllegalMode:");
+      break;
+    case 2: //V2 style menu initial paint
+      lcd.clear();
+      font->writeString("MPH:", 0, 0);
+      font->writeString("ODO:", 0, 2);
+      lcd.setCursor(15,3);
+      lcd.print("I:EN");
+      lcd.setCursor(15, 4);
+      lcd.print("100%");
+      break;
+    case 3: //Menu initial paint
+      menu->renderMenu(); //render menu onto LCD
+      delay(100);
       break;
   }
 
