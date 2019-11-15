@@ -17,4 +17,6 @@
 
 #define THROTTLE_MIN 190
 #define THROTTLE_MAX 861
+#define CC_MIN 0
+#define CC_MAX 1
 #define MIN_SPEED_LED ESC_MIN+100

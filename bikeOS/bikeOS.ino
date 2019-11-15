@@ -66,6 +66,7 @@ long ridetime = 0; //time spent with mph>0
 //Constants
 float WHEEL_CIRCUMFERENCE = (14.5 * 2 * 3.14159); //radius 14.5? TODO TUNE THIS
 #define LED_ILLEGAL_MODE_INTERVAL 100
+#define LED_CC_MODE_INTERVAL 250
 
 unsigned long illegalModePrevTime = 0;
 
@@ -74,41 +75,6 @@ int ledState = LOW;
 int MASTER_STATE = 0; //state machine
 
 #define LCD_MENU_STYLE 2 //menu style 2
-
-/*** THINGS TO IMPLEMENT
-APP_STATE vs MENU_STATE
-PROGMEM for bigFont stuff and menu stuff
-App state - i.e. init, control
-Everything packaged in classes
-
-menu its own class/library - decentralized from this file.
-called with menu->setMenuState, menu->getMenuState, etc like java
-menu->renderReturn returns array with 4 strings - output for display
-
-joystick its own class - reuse from old time
-swipe right/left to view sensor data. up/down on main screen to change the mode from PID to manual control
-PID like subaru control - instantly exits if anything is pressed (throttle change position, joystick clicked/moved, etc). also should always run in "legal" mode (ignores position of IllegalMode switch)
-
-MAIN SCREEN DISPLAY:
-Mode: Manual
-Throttle: X%
-IllegalMode: Enabled/Disabled
-MPH: mph mi, ODO: odo mi
-
-PID screen display:
-Mode: SemiAuto
-Setpoint: 10mph
-Click to inc/dec SP
-VESC actually controls PID of motor, but controller should linearly increase w/feedback from speed sensor. if no feedback, error out
-
-BIGMPH DISPLAY:
-mph in big font
-at bottom, odo
-
-
-
-
-*/
 
 //Initialize libs
 
@@ -152,6 +118,15 @@ timerElement timedEvents[5] = {{memCheck, 30000}}; //create the timer
 const int timerElements = 1;
 
 long prevMillis[timerElements]; //auto sets to 0
+
+
+//CC STUFF
+boolean CCEnabled = false;
+float CCSetpoint = 10.0;
+float CCTargetPwr = 0;
+//Todo: determine if delta is converging to 0, to ensure that we're actually updating speeds
+// float CCDelta[10] = new float[10];
+
 void setup() {
   Serial.begin(57600);
   //setup pins
@@ -366,36 +341,18 @@ void loop() {
       break;
     case 4: //ridetime
       delay(100);
-      if (forceRedraw) { //first paint
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Ride Time ----------");
-        lcd.setCursor(0, 2);
-        lcd.print("Time Since Init");
-      } else {
-        lcd.setCursor(0, 1);
-        lcd.print(timeToString(ridetime / 1000)); //prints time riding
-        Serial.println(ridetime);
-        lcd.setCursor(0, 3);
-        lcd.print(timeToString(millis() / 1000)); //prints time since init
-      }
+      lcd.setCursor(0, 1);
+      lcd.print(timeToString(ridetime / 1000)); //prints time riding
+      Serial.println(ridetime);
+      lcd.setCursor(0, 3);
+      lcd.print(timeToString(millis() / 1000)); //prints time since init
+
       if (joystick.isPressed()) {
         transitionState(LCD_MENU_STYLE,true);
       }
       break;
     case 5: //temp
       delay(100);
-      if (forceRedraw) {
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Temp ----------------");
-        lcd.setCursor(0, 1);
-        lcd.print("T: ");
-        lcd.setCursor(0, 2);
-        lcd.print("H: ");
-        lcd.setCursor(0, 3);
-        lcd.print("HI: ");
-      }
 
       //temp reading
       float h = dht.readHumidity();
@@ -435,34 +392,39 @@ void loop() {
       oldF = f;
       oldH = h;
 
-
       if (joystick.isPressed()) {
         transitionState(LCD_MENU_STYLE,true);
       }
       break;
     case 6: //beta cc mode
-      delay(100);
-      if (forceRedraw) {
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("not programmed press joystick to exit");
-      }
+      delay(20);
+      joystick.update(); //update joystick (poll)
+      
       if (joystick.isPressed()) {
         transitionState(LCD_MENU_STYLE,true);
+      } else if (joystick.movement) { //if joystick is getting moved, change the setpoint
+        CCSetpoint += ((joystick.down) ? -0.5 : 0.5);
+
+        font->writeString(String(CCSetpoint).substring(0, 4), 0, 1); //also update the setpoint value
       }
+
+      if (oldMph != mph || forceRedraw) {
+        lcd.setCursor(0,3);
+        lcd.print("T: 100.0% E: 000.0");
+        lcd.setCursor(10, 3);
+        lcd.write(130); //print the delta sign
+
+        lcd.setCursor(3, 3);
+        int mappedPwr = mapF(CCTargetPwr, CC_MIN, CC_MAX, 0, 100);
+        lcd.print(String(mappedPwr).substring(0,4)); //print target power
+
+        lcd.setCursor(13, 3);
+        lcd.print(String(mph-CCSetpoint).substring(0,4)); //print delta mph
+      }
+
       break;
     case 7: //info
-      if (forceRedraw) {
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Info --------------");
-        lcd.setCursor(0, 1);
-        lcd.print("BikeOS MKII");
-        lcd.setCursor(0, 2);
-        lcd.print("By Aaron Becker");
-        lcd.setCursor(0, 3);
-        lcd.print("Copyright 2019");
-      }
+      delay(100);
       if (joystick.isPressed()) {
         transitionState(LCD_MENU_STYLE,true);
       }
@@ -485,12 +447,11 @@ void loop() {
   }
 
   //The bike code that does the driving
-  /*if (pidDrive.enabled) {
-    pidDrive.driveUpdate();
+  if (CCEnabled) {
+    driveUpdateCC();
   } else {
     driveUpdateManual(); //update the bike motor power 
-  }*/
-  driveUpdateManual();
+  }
 
   //Disable forced redraw
   forceRedraw = false; //disable forced redraw
@@ -537,9 +498,38 @@ void driveUpdateManual() { //the big boi code that controls whether to update dr
   */
 }
 
+void driveUpdateCC() { //saucy very simple cc code
+  float delta = mph-CCSetpoint;
+
+  if (delta > 0) {
+    CCTargetPwr -= 0.005;
+  } else if (delta > 0) {
+    CCTargetPwr += 0.001;
+  }
+  CCTargetPwr = constrain(CCTargetPwr, CC_MIN, CC_MAX);
+
+  currentPercent = mapF(CCTargetPwr, CC_MIN, CC_MAX, 0, 100);
+  currentSpeed = mapF(CCTargetPwr, CC_MIN, CC_MAX, ESC_MIN, ESC_MAX);    //map the 0 to 1024 ponts of analog read
+  lightLedIfSpeed(ledState); //state according to millis loop
+
+  currentSpeed = constrain(currentSpeed, ESC_MIN, ESC_MAX);       //make sure the signal will never be over the range
+  VESC.write(currentSpeed);
+
+  if ((millis() - illegalModePrevTime) > LED_CC_MODE_INTERVAL) { //toggle led state in background; will be activated during illegal mode
+    illegalModePrevTime = millis();
+
+    if (ledState == LOW) { //toggle ledState
+      ledState = HIGH;
+    } else {
+      ledState = LOW;
+    }
+  }
+}
+
 void transitionStateReal(int newState, boolean forceRD) {
   forceRedraw = forceRD;
   MASTER_STATE = newState;
+  CCEnabled = false; //default it
 
   switch (newState) { //do something when transitioning states
     case 1: //V1 style menu initial paint
@@ -565,6 +555,49 @@ void transitionStateReal(int newState, boolean forceRD) {
       menu->renderMenu(); //render menu onto LCD
       delay(100);
       break;
+    case 4: //ridetime
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Ride Time ----------");
+      lcd.setCursor(0, 2);
+      lcd.print("Time Since Init");
+      break;
+    case 5: //temp
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Temp ----------------");
+      lcd.setCursor(0, 1);
+      lcd.print("T: ");
+      lcd.setCursor(0, 2);
+      lcd.print("H: ");
+      lcd.setCursor(0, 3);
+      lcd.print("HI: ");
+      break;
+    case 6: //cc setpoint
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("CC SETPOINT MODE");
+      font->writeString("10.5", 0, 1);
+      lcd.setCursor(16,2);
+      lcd.print("mph");
+      lcd.setCursor(0,3);
+      lcd.print("T: 100.0% E: 000.0%");
+
+      //ENABLE CC
+      CCEnabled = true;
+      break;
+    case 7: //info
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Info --------------");
+      lcd.setCursor(0, 1);
+      lcd.print("BikeOS MKII");
+      lcd.setCursor(0, 2);
+      lcd.print("By Aaron Becker");
+      lcd.setCursor(0, 3);
+      lcd.print("Copyright 2019");
+      break;
+
   }
 
 }
