@@ -5,7 +5,7 @@
 #include "DHT.h"
 #include "joystickHelper.h" //joystick library
 
-bikeMenu::bikeMenu(String *menuStates, int states, LiquidCrystal_I2C & lcd) : lcdRef (lcd){ //Initialize references
+bikeMenu::bikeMenu(String menuStates[], int states, LiquidCrystal_I2C & lcd) : lcdRef (lcd){ //Initialize references
   _menuStates = menuStates;
   _numberOfStates = states;
 

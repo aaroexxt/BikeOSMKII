@@ -18,7 +18,7 @@ int bigFont::writeString(String str, int xPos, int yPos) {
   str.toCharArray(charBuffer, strLen);
 
   for (int i=0; i<strLen; i++) {
-    Serial.println(charBuffer[i]);
+    //Serial.println(charBuffer[i]);
     writeChar(charBuffer[i], xPos, yPos);
     xPos+=4;
   }

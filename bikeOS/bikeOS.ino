@@ -123,7 +123,6 @@ long prevMillis[timerElements]; //auto sets to 0
 //CC STUFF
 boolean CCEnabled = false;
 float CCSetpoint = 10.0;
-float CCTargetPwr = 0;
 //Todo: determine if delta is converging to 0, to ensure that we're actually updating speeds
 // float CCDelta[10] = new float[10];
 
@@ -157,7 +156,6 @@ void setup() {
   // TIMER SETUP- the timer interrupt allows precise timed measurements of the reed switch
   //for more info about configuration of arduino timers see http://arduino.cc/playground/Code/Timer1
   cli();//stop interrupts
-  TCCR1B |= (1 << CS11);
 
 
   //set timer1 interrupt at 1kHz
@@ -168,6 +166,7 @@ void setup() {
   OCR1A = 1999;// = (1/1000) / ((1/(16*10^6))*8) - 1
   // turn on CTC mode
   TCCR1B |= (1 << WGM12);
+  TCCR1B |= (1 << CS11);
   // Set CS11 bit for 8 prescaler  // enable timer compare interrupt
   TIMSK1 |= (1 << OCIE1A);
 
@@ -210,7 +209,6 @@ ISR(TIMER1_COMPA_vect) {//Interrupt at freq of 1kHz to measure reed switch
 
 void loop() {
   wdt_reset(); //pat watchdog (in case arduino gets stuck in a loop)
-
 /* Master-state breakdown
 
 0 - initial, writes hello message
@@ -277,7 +275,7 @@ void loop() {
       }
 
       if (joystick.isPressed()) { //update joystick state in this mode so as to not waste processing power otherwise
-        transitionState(6);
+        transitionState(3);
       }
 
       //reset various "old" variables
@@ -290,15 +288,15 @@ void loop() {
 
       //Run all the checks
       if (oldIllegalMode != illegalMode || forceRedraw) {
-        lcd.setCursor(17,3);
-        lcd.print((illegalMode)?"EN":"DS");
+        lcd.setCursor(18,3);
+        lcd.print((illegalMode)?"DS":"EN");
       }
 
       if (oldPercent != currentPercent || forceRedraw) {
-        lcd.setCursor(15,4);
+        lcd.setCursor(12,4);
+        lcd.print("  ");
+        lcd.setCursor(12,4);
         lcd.print(currentPercent);
-        lcd.setCursor(19,4);
-        lcd.print("%");
       }
 
       if (oldMph != mph || forceRedraw) {
@@ -312,7 +310,7 @@ void loop() {
       }
 
       if (joystick.isPressed()) { //update joystick state in this mode so as to not waste processing power otherwise
-        transitionState(6);
+        transitionState(3);
       }
 
       //reset various "old" variables
@@ -320,12 +318,14 @@ void loop() {
       oldOdometer = odometer;
       oldIllegalMode = illegalMode;
       oldPercent = currentPercent;
+      break;
     case 3: //menu on screen; case to wait until joystick change and update x value
       delay(100); //don't update too quickly
       joystick.update();
       if (joystick.isPressed()) { //if joystick pressed
         int offset = menu->getOffset();
         if (offset != 0) { //offset is 0, so just return otherwise switch state
+          Serial.println("Menu_TransState");
           transitionState(offset + 4, true); //force a screen redraw to paint initial state
           return; //return because we don't want the state to be updated anymore
         } else {
@@ -396,28 +396,27 @@ void loop() {
         transitionState(LCD_MENU_STYLE,true);
       }
       break;
-    case 6: //beta cc mode
-      delay(20);
+    case 6: //cc mode
+      delay(100);
       joystick.update(); //update joystick (poll)
-      
       if (joystick.isPressed()) {
         transitionState(LCD_MENU_STYLE,true);
       } else if (joystick.movement) { //if joystick is getting moved, change the setpoint
         CCSetpoint += ((joystick.down) ? -0.5 : 0.5);
+        CCSetpoint = constrain(CCSetpoint, 0, CC_MPH_MAX);
 
         font->writeString(String(CCSetpoint).substring(0, 4), 0, 1); //also update the setpoint value
       }
 
       if (oldMph != mph || forceRedraw) {
-        lcd.setCursor(0,3);
-        lcd.print("T: 100.0% E: 000.0");
-        lcd.setCursor(10, 3);
-        lcd.write(130); //print the delta sign
-
         lcd.setCursor(3, 3);
-        int mappedPwr = mapF(CCTargetPwr, CC_MIN, CC_MAX, 0, 100);
-        lcd.print(String(mappedPwr).substring(0,4)); //print target power
+        lcd.print("     ");
+        lcd.setCursor(3, 3);
+        lcd.print(currentPercent); //print target power
+        Serial.println(currentPercent);
 
+        lcd.setCursor(13, 3);
+        lcd.print("     ");
         lcd.setCursor(13, 3);
         lcd.print(String(mph-CCSetpoint).substring(0,4)); //print delta mph
       }
@@ -499,17 +498,15 @@ void driveUpdateManual() { //the big boi code that controls whether to update dr
 }
 
 void driveUpdateCC() { //saucy very simple cc code
-  float delta = mph-CCSetpoint;
+  float delta = (float)mph-CCSetpoint;
 
   if (delta > 0) {
-    CCTargetPwr -= 0.005;
-  } else if (delta > 0) {
-    CCTargetPwr += 0.001;
+    currentPercent -= 1;
+  } else if (delta < 0) {
+    currentPercent += 1;
   }
-  CCTargetPwr = constrain(CCTargetPwr, CC_MIN, CC_MAX);
-
-  currentPercent = mapF(CCTargetPwr, CC_MIN, CC_MAX, 0, 100);
-  currentSpeed = mapF(CCTargetPwr, CC_MIN, CC_MAX, ESC_MIN, ESC_MAX);    //map the 0 to 1024 ponts of analog read
+  currentPercent = constrain(currentPercent, CC_MIN, CC_MAX);
+  currentSpeed = map(currentPercent, CC_MIN, CC_MAX, ESC_MIN, ESC_MAX);    //map the 0 to 1024 ponts of analog read
   lightLedIfSpeed(ledState); //state according to millis loop
 
   currentSpeed = constrain(currentSpeed, ESC_MIN, ESC_MAX);       //make sure the signal will never be over the range
@@ -529,7 +526,9 @@ void driveUpdateCC() { //saucy very simple cc code
 void transitionStateReal(int newState, boolean forceRD) {
   forceRedraw = forceRD;
   MASTER_STATE = newState;
-  CCEnabled = false; //default it
+  CCEnabled = false; //return to default state
+  Serial.print("StateChange: ");
+  Serial.println(newState);
 
   switch (newState) { //do something when transitioning states
     case 1: //V1 style menu initial paint
@@ -546,14 +545,15 @@ void transitionStateReal(int newState, boolean forceRD) {
       lcd.clear();
       font->writeString("MPH:", 0, 0);
       font->writeString("ODO:", 0, 2);
-      lcd.setCursor(15,3);
+      lcd.setCursor(16,3);
       lcd.print("I:EN");
-      lcd.setCursor(15, 4);
-      lcd.print("100%");
+      lcd.setCursor(11, 4);
+      lcd.print("   %");
       break;
     case 3: //Menu initial paint
+      lcd.clear();
       menu->renderMenu(); //render menu onto LCD
-      delay(100);
+      delay(500);
       break;
     case 4: //ridetime
       lcd.clear();
@@ -577,11 +577,13 @@ void transitionStateReal(int newState, boolean forceRD) {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("CC SETPOINT MODE");
-      font->writeString("10.5", 0, 1);
+      font->writeString("00.0", 0, 1);
       lcd.setCursor(16,2);
       lcd.print("mph");
       lcd.setCursor(0,3);
-      lcd.print("T: 100.0% E: 000.0%");
+      lcd.print("T: 000.0% E: 000.0%");
+      lcd.setCursor(10, 3);
+      lcd.write(130); //print the delta sign
 
       //ENABLE CC
       CCEnabled = true;
