@@ -1,5 +1,5 @@
 // the 8 arrays that form each segment of the custom numbers
-byte C_LT[8] = {
+const byte C_LT[8] = {
   B00111,
   B01111,
   B11111,
@@ -9,7 +9,7 @@ byte C_LT[8] = {
   B11111,
   B11111
 };
-byte C_UB[8] = {
+const byte C_UB[8] = {
   B11111,
   B11111,
   B11111,
@@ -19,7 +19,7 @@ byte C_UB[8] = {
   B00000,
   B00000
 };
-byte C_RT[8] = {
+const byte C_RT[8] = {
   B11100,
   B11110,
   B11111,
@@ -29,7 +29,7 @@ byte C_RT[8] = {
   B11111,
   B11111
 };
-byte C_LL[8] = {
+const byte C_LL[8] = {
   B11111,
   B11111,
   B11111,
@@ -39,7 +39,7 @@ byte C_LL[8] = {
   B01111,
   B00111
 };
-byte C_LB[8] = {
+const byte C_LB[8] = {
   B00000,
   B00000,
   B00000,
@@ -49,7 +49,7 @@ byte C_LB[8] = {
   B11111,
   B11111
 };
-byte C_LR[8] = {
+const byte C_LR[8] = {
   B11111,
   B11111,
   B11111,
@@ -59,7 +59,7 @@ byte C_LR[8] = {
   B11110,
   B11100
 };
-byte C_UMB[8] = {
+const byte C_UMB[8] = {
   B11111,
   B11111,
   B11111,
@@ -69,7 +69,7 @@ byte C_UMB[8] = {
   B11111,
   B11111
 };
-byte C_LMB[8] = {
+const byte C_LMB[8] = {
   B11111,
   B00000,
   B00000,
