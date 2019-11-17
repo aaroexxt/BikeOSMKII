@@ -283,6 +283,7 @@ void loop() {
     oldOdometer = odometer;
     oldIllegalMode = illegalMode;
     oldPercent = currentPercent;
+    forceRedraw = false;
   } else if (MASTER_STATE == 2) { //V2 style lcd update loop
 
     //Run all the checks
@@ -292,9 +293,9 @@ void loop() {
     }
 
     if (oldPercent != currentPercent || forceRedraw) {
-      lcd.setCursor(12,4);
-      lcd.print("    ");
-      lcd.setCursor(12,4);
+      lcd.setCursor(13,4);
+      lcd.print("  %");
+      lcd.setCursor(13,4);
       lcd.print(currentPercent);
     }
 
@@ -302,7 +303,7 @@ void loop() {
       lcd.setCursor(14, 0);
       lcd.print("   ");
       lcd.setCursor(14,0);
-      lcd.print(String(mph).substring(0, 3));
+      lcd.print(String(mph).substring(0, 4));
     }
 
     if (oldOdometer != odometer || forceRedraw) {
@@ -321,6 +322,7 @@ void loop() {
     oldOdometer = odometer;
     oldIllegalMode = illegalMode;
     oldPercent = currentPercent;
+    forceRedraw = false;
   } else if (MASTER_STATE == 3) { //menu on screen; case to wait until joystick change and update x value
     delay(100); //don't update too quickly
     joystick.update();
@@ -402,15 +404,22 @@ void loop() {
       transitionState(LCD_MENU_STYLE,true);
     }
 
+    forceRedraw = false;
+
   } else if (MASTER_STATE == 6) { //cc mode
     delay(100);
     joystick.update(); //update joystick (poll)
+    boolean redrawTarget = false;
     if (joystick.isPressed()) {
-      transitionState(LCD_MENU_STYLE,true);
+      transitionState(8,true);
     } else if (joystick.movement) { //if joystick is getting moved, change the setpoint
       CCSetpoint += ((joystick.down) ? -0.5 : 0.5);
       CCSetpoint = constrain(CCSetpoint, 0, CC_MPH_MAX);
+      
+      redrawTarget = true;
+    }
 
+    if (forceRedraw || redrawTarget) {
       lcd.setCursor(0, 1);
       lcd.print("              ");
       lcd.setCursor(0, 2);
@@ -418,12 +427,11 @@ void loop() {
       BFwriteString(String(CCSetpoint).substring(0, 4), 0, 1); //also update the setpoint value
     }
 
-    if (oldMph != mph || forceRedraw) {
+    if (oldMph != mph || forceRedraw || currentPercent != oldPercent) {
       lcd.setCursor(3, 3);
       lcd.print("     ");
       lcd.setCursor(3, 3);
       lcd.print(currentPercent); //print target power
-      Serial.println(currentPercent);
 
       lcd.setCursor(13, 3);
       lcd.print("     ");
@@ -431,11 +439,22 @@ void loop() {
       lcd.print(String(mph-CCSetpoint).substring(0,4)); //print delta mph
     }
 
+    //reset various "old" variables
+    oldMph = mph;
+    oldOdometer = odometer;
+    oldIllegalMode = illegalMode;
+    oldPercent = currentPercent;
+    forceRedraw = false;
   } else if (MASTER_STATE == 7) { //info
     delay(100);
     if (joystick.isPressed()) {
       transitionState(LCD_MENU_STYLE,true);
     }
+  } else if (MASTER_STATE == 8) { //delay before transitioning back to regular menu state (CCmode jank bugfix)
+    lcd.clear();
+    delay(250);
+    lcd.clear();
+    transitionState(LCD_MENU_STYLE, true);
   } else { //hmm undefined state? so just reset
     Serial.println("State error: undefined state");
     Serial.println(MASTER_STATE);
@@ -457,10 +476,6 @@ void loop() {
   } else {
     driveUpdateManual(); //update the bike motor power 
   }
-
-  //Disable forced redraw
-  forceRedraw = false; //disable forced redraw
-  
 }
 
 void driveUpdateManual() { //the big boi code that controls whether to update drive
@@ -559,14 +574,12 @@ void transitionStateReal(int newState, boolean forceRD) {
     case 2: //V2 style menu initial paint
       lcd.clear();
       delay(100);
-      lcd.clear(); //for some reason it doesn't like to actually clear when coming out of CCmode
-      delay(100);
       BFwriteString("MPH:", 0, 0); //basic mph/odo
       BFwriteString("ODO:", 0, 2);
       lcd.setCursor(16,3);
-      lcd.print("I:DS"); //illegalMode?
-      lcd.setCursor(11, 4);
-      lcd.print("   %");
+      lcd.print("I:  "); //illegalMode?
+      lcd.setCursor(13, 4);
+      lcd.print("  %");
       
       lcd.setCursor(14,0); //mph actual disp
       lcd.print("0");
@@ -575,17 +588,16 @@ void transitionStateReal(int newState, boolean forceRD) {
 
       lcd.setCursor(14,2); //odo actual disp
       lcd.print("0");
-      lcd.setCursor(17, 0); //miles display
+      lcd.setCursor(18, 2); //miles display
       lcd.print("mi");
       break;
     case 3: //Menu initial paint
       lcd.clear();
-      renderMenu(); //render menu onto LCD
-      /*
-      //Reset menu position - nah I kinda like it without this lmao
+      //Reset menu position
       menuOffset = 0;
       cursorOffset = 0;
-      */
+
+      renderMenu(); //render menu onto LCD
       delay(500);
       break;
     case 4: //ridetime
