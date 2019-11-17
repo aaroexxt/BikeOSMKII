@@ -214,13 +214,13 @@ void loop() {
 /* Master-state breakdown
 
 0 - initial, writes hello message
-1 - delay of hello message
-2 - print V1 lcd message once
-3 - update loop for 'V1 style' lcd
-4 - print V2 lcd message once
-5 - update loop for 'V2 style' lcd
-6 - menu
-7 - menu
+1 - v1 style update loop
+2 - v2 style update loop
+3 - menu main state - increment/decrement cursor position
+4 - ridetime
+5 - temp
+6 - cc mode update
+7 - info
 
 */
   if (MASTER_STATE == 0) { //initial state. Sets up LCD with status message
@@ -293,19 +293,23 @@ void loop() {
 
     if (oldPercent != currentPercent || forceRedraw) {
       lcd.setCursor(12,4);
-      lcd.print("  ");
+      lcd.print("    ");
       lcd.setCursor(12,4);
       lcd.print(currentPercent);
     }
 
     if (oldMph != mph || forceRedraw) {
-      lcd.setCursor(16,0);
-      lcd.print(String(mph).substring(0, 4));
+      lcd.setCursor(14, 0);
+      lcd.print("   ");
+      lcd.setCursor(14,0);
+      lcd.print(String(mph).substring(0, 3));
     }
 
     if (oldOdometer != odometer || forceRedraw) {
-      lcd.setCursor(16,2);
-      lcd.print(String(odometer).substring(0, 4));
+      lcd.setCursor(14, 2);
+      lcd.print("   ");
+      lcd.setCursor(14,2);
+      lcd.print(String(odometer).substring(0, 3));
     }
 
     if (joystick.isPressed()) { //update joystick state in this mode so as to not waste processing power otherwise
@@ -533,6 +537,15 @@ void transitionStateReal(int newState, boolean forceRD) {
   Serial.println(newState);
 
   switch (newState) { //do something when transitioning states
+    case 0: //initial state; clear display & give error message
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("State error");
+      lcd.setCursor(0, 1);
+      lcd.print("Resetting");
+      delay(1000);
+      lcd.clear();
+      break;
     case 1: //V1 style menu initial paint
       lcd.clear();
       lcd.print("MPH:");
@@ -541,10 +554,13 @@ void transitionStateReal(int newState, boolean forceRD) {
       lcd.setCursor(0, 2);
       lcd.print("THT:");
       lcd.setCursor(0, 3);
-      lcd.print("IllegalMode:");
+      lcd.print("MaxPwrMode:");
       break;
     case 2: //V2 style menu initial paint
       lcd.clear();
+      delay(100);
+      lcd.clear(); //for some reason it doesn't like to actually clear when coming out of CCmode
+      delay(100);
       BFwriteString("MPH:", 0, 0); //basic mph/odo
       BFwriteString("ODO:", 0, 2);
       lcd.setCursor(16,3);
@@ -552,11 +568,15 @@ void transitionStateReal(int newState, boolean forceRD) {
       lcd.setCursor(11, 4);
       lcd.print("   %");
       
-      lcd.setCursor(16,0); //mph actual disp
-      lcd.print("0000");
+      lcd.setCursor(14,0); //mph actual disp
+      lcd.print("0");
+      lcd.setCursor(17, 0); //mph display
+      lcd.print("mph");
 
-      lcd.setCursor(16,2); //odo actual disp
-      lcd.print("0000");
+      lcd.setCursor(14,2); //odo actual disp
+      lcd.print("0");
+      lcd.setCursor(17, 0); //miles display
+      lcd.print("mi");
       break;
     case 3: //Menu initial paint
       lcd.clear();
@@ -724,6 +744,7 @@ int BFwriteChar(char tW, int offsetX, int offsetY) {
   if (tW >= 65 && tW <= 90) {
     tW = tolower(tW);
   }
+  boolean halfWidthChar = false;
   switch (tW) { //lower case char, will only affect letters
     case '0':
     case 'o':
@@ -1078,8 +1099,21 @@ int BFwriteChar(char tW, int offsetX, int offsetY) {
       lcd.setCursor(offsetX, offsetY+1);
       lcd.write(7);
       break;
+    //HALF WIDTH CHARACTERS
+    case '.':
+      halfWidthChar = true;
+      lcd.setCursor(offsetX, offsetY+1);
+      lcd.write(4); //CLB
+      break;
+    case ':':
+      halfWidthChar = true;
+      lcd.setCursor(offsetX, offsetY);
+      lcd.write(1); //CUB
+      lcd.setCursor(offsetX, offsetY+1);
+      lcd.write(4); //CLB
+      break;
   }
-  return offsetX+4; //return new xPos
+  return offsetX+((halfWidthChar) ? 2 : 4); //return new xPos
 }
 
 
